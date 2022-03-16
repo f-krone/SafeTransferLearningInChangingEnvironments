@@ -15,7 +15,7 @@ env.step(1)
 
 plt.figure(3)
 plt.clf()
-plt.imshow(env.render(mode='rgb_array'))
+plt.imshow(env.render(mode='rgb_array', width=100, height=100))
 plt.axis('off')
 
 display.clear_output(wait=True)

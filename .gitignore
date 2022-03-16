@@ -1,3 +1,10 @@
+src/notebooks/models/
+src/notebooks/runs/
+src/notebooks/videos/
+src/notebooks/wandb/
+src/notebooks/fetch-reach-ensemble-preference
+output/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
