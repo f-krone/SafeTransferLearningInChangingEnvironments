@@ -30,7 +30,7 @@ class PixelObservation(ObservationWrapper):
         self.width = width
         self.height = height
         low, high = (0, 255)
-        pixels_space = spaces.Box(shape=(width, height, 3), low=low, high=high, dtype=np.uint8)
+        pixels_space = spaces.Box(shape=(height, width, 3), low=low, high=high, dtype=np.uint8)
         self.observation_space = spaces.Dict(
             image=pixels_space,
         )
@@ -78,7 +78,7 @@ class AddImage(ObservationWrapper):
                 achieved_goal=env.observation_space['achieved_goal'],
                 observation=env.observation_space['observation'],
                 image=spaces.Box(
-                    shape=(width, height, 3), low=0, high=255, dtype=np.uint8
+                    shape=(height, width, 3), low=0, high=255, dtype=np.uint8
                 )
             )
         )
@@ -91,3 +91,18 @@ class AddImage(ObservationWrapper):
             'achieved_goal': observation['achieved_goal']
         }
         return obs
+
+class CropImage(ObservationWrapper):
+    def __init__(self, env):
+        super(CropImage, self).__init__(env)
+        self.width = env.observation_space['image'].shape[1]
+        self.height = env.observation_space['image'].shape[0]
+        low, high = (0, 255)
+        pixels_space = spaces.Box(shape=(int(0.5 * self.height), int(0.5 * self.width), 3), low=low, high=high, dtype=np.uint8)
+        space = {k:env.observation_space[k] for k in env.observation_space.spaces.keys()}
+        space['image'] = pixels_space
+        self.observation_space = spaces.Dict(space)
+    
+    def observation(self, observation):
+        observation['image'] = observation['image'][int(0.15*self.height): int(0.65*self.height), int(0.2*self.width):int(0.7*self.width)]
+        return observation

@@ -146,10 +146,10 @@ class FetchEnv(robot_env.RobotEnv):
             ]
         )
         robot = np.concatenate([
-                grip_pos,
-                gripper_state,
-                grip_velp,
-                gripper_vel,
+                grip_pos.copy(),
+                gripper_state.copy(),
+                grip_velp.copy(),
+                gripper_vel.copy(),
         ])
 
         return {
