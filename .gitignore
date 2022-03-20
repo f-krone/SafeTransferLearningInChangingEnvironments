@@ -2,6 +2,7 @@ src/notebooks/models/
 src/notebooks/runs/
 src/notebooks/videos/
 src/notebooks/wandb/
+src/wandb/
 src/notebooks/fetch-reach-ensemble-preference
 output/
 
