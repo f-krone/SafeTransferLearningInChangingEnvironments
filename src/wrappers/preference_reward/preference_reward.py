@@ -1,16 +1,20 @@
 from gym import Env, Wrapper
 import numpy as np
 from wrappers.preference_reward.model_wrapper import ModelWrapper
-import wandb
+from torch.utils.tensorboard import SummaryWriter
 
 class PreferenceReward(Wrapper):
     #TODO calc max_mse from the env.action_space
-    def __init__(self, env: Env, preferenceModel: ModelWrapper, max_mse: float, alpha: float, use_wandb: bool=False) -> None:
+    def __init__(self, env: Env, preferenceModel: ModelWrapper, max_mse: float, alpha: float, tensorboard_log: str=None) -> None:
         super().__init__(env)
         self.preferenceModel = preferenceModel
         self.alpha = alpha
-        self.use_wandb = use_wandb
+        self.tensorboard_log = tensorboard_log
         self.max_mse = max_mse
+        if tensorboard_log != None:
+            self.writer = SummaryWriter(log_dir=tensorboard_log)
+        else:
+            self.writer = None
         self.internal_rewards = []
         self.external_rewards = []
         self.confidences = []
@@ -36,13 +40,12 @@ class PreferenceReward(Wrapper):
 
     
     def reset(self, **kwargs):
-        if self.use_wandb and len(self.internal_rewards) > 0:
-            wandb.log({
-                "ep_internal_reward_mean": np.mean(self.internal_rewards),
-                "ep_external_reward_mean": np.mean(self.external_rewards),
-                "ep_confidence_mean": np.mean(self.confidences),
-                "ep_action_error_mean": np.mean(self.actions_errors),
-                "ep_calc_reward_mean": np.mean(self.calc_rewards)})
+        if self.writer != None and len(self.internal_rewards) > 0:
+            self.writer.add_scalar('preference_reward/ep_internal_reward_mean', np.mean(self.internal_rewards))
+            self.writer.add_scalar('preference_reward/ep_external_reward_mean', np.mean(self.external_rewards))
+            self.writer.add_scalar('preference_reward/ep_confidence_mean', np.mean(self.confidences))
+            self.writer.add_scalar('preference_reward/ep_action_error_mean', np.mean(self.actions_errors))
+            self.writer.add_scalar('preference_reward/ep_calc_reward_mean', np.mean(self.calc_rewards))
         self.internal_rewards = []
         self.external_rewards = []
         self.confidences = []
