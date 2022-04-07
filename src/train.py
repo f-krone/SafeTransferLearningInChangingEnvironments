@@ -54,41 +54,50 @@ from custom_policies.custom_feature_extractor import CustomFeatureExtractor
 }"""
 
 base_folder = '../output'
-project_name = 'ensemble-preference-sweep-3'
+project_name = 'ensemble-preference-sweep-push'
 
 if __name__ == '__main__':
     def train_wrapper():
-        run = wandb.init(sync_tensorboard=True)
+        run = wandb.init(monitor_gym=True)
+        wandb.tensorboard.patch(root_logdir=f'{base_folder}/sweeps/{project_name}/{run.id}/runs', pytorch=True)
         config = wandb.config
 
-        model_wrapper = ModelWrapper(list(map(lambda i: f'{base_folder}/fetch-reach-ensemble/SAC_ensemble_' + str(i), range(3))), obs_keys=['achieved_goal', 'desired_goal', 'observation'])  
+        def load_model(file_name):
+            def make_ensemble_env():
+                    env = gym.make("FetchPushDense-v1")
+                    env = Monitor(env)  # record stats such as returns
+                    return env
+            ensemble_env = DummyVecEnv([make_ensemble_env])
+            return SAC.load(file_name, ensemble_env)
+        model_wrapper = ModelWrapper(list(map(lambda i: load_model( f'{base_folder}/fetch-push-ensemble/SAC_ensemble_' + str(i)), range(3))), obs_keys=['achieved_goal', 'desired_goal', 'observation'])
+        
         def make_env():
-            env = gym.make('CustomFetchReachDense-v0')
+            env = gym.make('CustomFetchPushDense-v0')
             env = Monitor(env)  # record stats such as returns
-            env = PreferenceReward(env, model_wrapper, 4, config.alpha, use_wandb=True)
+            env = PreferenceReward(env, model_wrapper, 4, config.alpha, tensorboard_log=f'{base_folder}/sweeps/{project_name}/{run.id}/runs')
             env = wrappers.ImageAndRobot(env, 128, 128)
             env = wrappers.CropImage(env)
-            env = wrappers.FrameStack(env, stack_size=4, use_3d_conv=config.temporal_merge == '3d_conv', add_robot=True)
+            env = wrappers.FrameStack(env, stack_size=config.stack_size, use_3d_conv=True, add_robot=True)
             return env
         env = DummyVecEnv([make_env])
 
         model = SAC('MultiInputPolicy', env, 
             learning_starts=int(1e4), 
-            buffer_size=int(1.5e5),
+            buffer_size=int(4e5),
             gamma=config.gamma,
             learning_rate=config.learning_rate,
             policy_kwargs=dict(
                 features_extractor_class=CustomFeatureExtractor,
                 features_extractor_kwargs=dict(custom_cnn=False),
-                net_arch=config.policy_arch
+                net_arch=[1024, 512, 256]
             ),
             action_noise=OrnsteinUhlenbeckActionNoise(np.zeros(shape=4) + config.noise_mean, np.zeros(shape=4) + config.noise_sigma),
-            verbose=1, tensorboard_log=f'{base_folder}/sweeps/{project_name}/runs/{run.id}')
+            verbose=1, tensorboard_log=f'{base_folder}/sweeps/{project_name}/{run.id}/runs')
         model.learn(
-            total_timesteps=int(1.5e5),
+            total_timesteps=int(1.5e6),
             callback=WandbCallback(
                 gradient_save_freq=1000,
-                model_save_path=f'{base_folder}/sweeps/{project_name}/models/{run.id}',
+                model_save_path=f'{base_folder}/sweeps/{project_name}/{run.id}/models',
                 verbose=2,
             ))
     train_wrapper()

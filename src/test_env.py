@@ -12,7 +12,7 @@ from pyvirtualdisplay import Display
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.monitor import Monitor
 
-env = gym.make('CustomFetchReachDense-v0')
+env = gym.make('CustomFetchPushDense-v0')
 
 obs = env.reset()
 env.step(1)

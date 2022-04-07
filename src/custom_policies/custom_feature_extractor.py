@@ -71,9 +71,9 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
                 )
                 total_concat_size += 128
 
-            else:
-                extractors[key] = nn.Flatten()
-                total_concat_size += get_flattened_obs_dim(subspace)
+           # else:
+           #     extractors[key] = nn.Flatten()
+           #     total_concat_size += get_flattened_obs_dim(subspace)
 
         self.extractors = nn.ModuleDict(extractors)
 

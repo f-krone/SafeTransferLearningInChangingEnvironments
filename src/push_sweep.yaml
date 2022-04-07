@@ -1,0 +1,26 @@
+program: push_train.py
+project: push-ensemble-sweep-1
+method: bayes
+metric:
+  name: rollout/ep_rew_mean
+  goal: maximize
+parameters:
+  gamma:
+    min: 0.8
+    max: 0.99
+  learning_rate:
+    min: 0.0001
+    max: 0.001
+  noise_mean: 
+    min: -0.5
+    max: 0.5
+  noise_sigma: 
+    min: 0.0
+    max: 0.5
+  policy_arch:
+    values: [[1024, 512, 256], [512, 256, 256], [512, 256, 128], [256, 256], [256, 128]]
+  sampling_strategie:
+    values: [epsiode, final, future]
+  n_sampled_goal:
+    min: 1
+    max: 8

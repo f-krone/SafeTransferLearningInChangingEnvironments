@@ -10,10 +10,10 @@ class ModelWrapper:
         self.use_mean = use_mean
         self.obs_keys = obs_keys
 
-    def __init__(self, sac_model_paths: List[str], obs_keys:List[str], use_mean=False) -> None:
+    """def __init__(self, sac_model_paths: List[str], obs_keys:List[str], use_mean=False) -> None:
         self.models = list(map(lambda path: SAC.load(path), iter(sac_model_paths)))
         self.use_mean = use_mean
-        self.obs_keys = obs_keys
+        self.obs_keys = obs_keys"""
 
     def calc_action(self, observation) -> Tuple[np.ndarray, float]:
         # actions.shape = (len(self.models), action_space)

@@ -33,9 +33,9 @@ class PreferenceReward(Wrapper):
         return internal_reward
 
     def _get_alpha(self) -> float:
-        if isinstance(self.alpha, float):
-            return self.alpha
-        return self.alpha(self.steps)
+        if callable(self.alpha):
+            return self.alpha(self.steps)
+        return self.alpha
 
     def step(self, action):
         observation, reward, done, info = self.env.step(action)
