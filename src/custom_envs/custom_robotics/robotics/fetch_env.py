@@ -25,6 +25,7 @@ class FetchEnv(robot_env.RobotEnv):
         distance_threshold,
         initial_qpos,
         reward_type,
+        has_barrier = False,
     ):
         """Initializes a new Fetch environment.
 
@@ -51,6 +52,7 @@ class FetchEnv(robot_env.RobotEnv):
         self.target_range = target_range
         self.distance_threshold = distance_threshold
         self.reward_type = reward_type
+        self.has_barrier = has_barrier
 
         super(FetchEnv, self).__init__(
             model_path=model_path,
@@ -190,6 +192,9 @@ class FetchEnv(robot_env.RobotEnv):
             object_qpos[:2] = object_xpos
             self.sim.data.set_joint_qpos("object0:joint", object_qpos)
 
+            if self.has_barrier:
+                self._place_barrier(object_xpos)
+
         self.sim.forward()
         return True
 
@@ -235,3 +240,23 @@ class FetchEnv(robot_env.RobotEnv):
 
     def render(self, mode="human", width=500, height=500):
         return super(FetchEnv, self).render(mode, width, height)
+
+    def _place_barrier(self, object_xpos):
+        height = self.sim.data.get_site_xpos('object0')[2]
+        site_id = self.sim.model.body_name2id('barrier0')
+        #make sure the object is completely on the table
+        pos0 = self.np_random.uniform(1.2, 1.45)
+
+        #make sure, the barrier has a distance of at least 0.1 to the gripper
+        pos1 = self.initial_gripper_xpos[1]
+        while np.abs(pos1 - self.initial_gripper_xpos[1]) < 0.1:
+            # place the barrier alway in front of the object if it is too far back, or behing respectively. Decide at random if the object is roughly centered
+            place_in_front = True if object_xpos[1] > 0.8 else False if object_xpos[1] < 0.7 else np.random.randint(0, 2, dtype=bool)
+
+            #the barrier will always have a distance of at least 0.1 to the object and 0.2 to the table edge
+            if place_in_front:
+                pos1 = self.np_random.uniform(0.62, object_xpos[1] - 0.1)
+            else:
+                pos1 = self.np_random.uniform(object_xpos[1] + 0.1, 0.85)
+            barrier_pos = np.array([pos0, pos1, height])
+        self.sim.model.body_pos[site_id] = barrier_pos
