@@ -25,7 +25,7 @@ class FetchEnv(robot_env.RobotEnv):
         distance_threshold,
         initial_qpos,
         reward_type,
-        has_barrier = False,
+        has_barrier = True,
     ):
         """Initializes a new Fetch environment.
 
@@ -199,6 +199,27 @@ class FetchEnv(robot_env.RobotEnv):
         return True
 
     def _sample_goal(self):
+        if self.has_barrier and self.has_object:
+            return self._sample_goal_with_barrier()
+        return self._sample_goal_no_barrier()
+    
+    def _sample_goal_with_barrier(self):
+        goal = self.sim.data.get_body_xpos("barrier0").copy()
+
+        #make sure the goal is always behind the barrier when seen from the object
+        goal[0] = self.np_random.uniform(goal[0] - 0.04, goal[0] + 0.04)
+        #make sure the goal has a distance of at least 0.1 to the barrier and 0.05 to the table edge
+        if self.place_in_front:
+            goal[1] = self.np_random.uniform(0.47, goal[1] - 0.1)
+        else:
+            goal[1] = self.np_random.uniform(goal[1] + 0.1, 1.0)
+        goal += self.target_offset
+        goal[2] = self.height_offset
+        if self.target_in_the_air and self.np_random.uniform() < 0.5:
+            goal[2] += self.np_random.uniform(0, 0.45)
+        return goal.copy()
+    
+    def _sample_goal_no_barrier(self):
         if self.has_object:
             goal = self.initial_gripper_xpos[:3] + self.np_random.uniform(
                 -self.target_range, self.target_range, size=3
@@ -238,12 +259,15 @@ class FetchEnv(robot_env.RobotEnv):
         if self.has_object:
             self.height_offset = self.sim.data.get_site_xpos("object0")[2]
 
+        #the value does not matter here, the variable just needs to be defined as a goal is sampled before the first reset
+        self.place_in_front = True
+
     def render(self, mode="human", width=500, height=500):
         return super(FetchEnv, self).render(mode, width, height)
 
     def _place_barrier(self, object_xpos):
         height = self.sim.data.get_site_xpos('object0')[2]
-        site_id = self.sim.model.body_name2id('barrier0')
+        body_id = self.sim.model.body_name2id('barrier0')
         #make sure the object is completely on the table
         pos0 = self.np_random.uniform(1.2, 1.45)
 
@@ -251,12 +275,12 @@ class FetchEnv(robot_env.RobotEnv):
         pos1 = self.initial_gripper_xpos[1]
         while np.abs(pos1 - self.initial_gripper_xpos[1]) < 0.1:
             # place the barrier alway in front of the object if it is too far back, or behing respectively. Decide at random if the object is roughly centered
-            place_in_front = True if object_xpos[1] > 0.8 else False if object_xpos[1] < 0.7 else np.random.randint(0, 2, dtype=bool)
+            self.place_in_front = True if object_xpos[1] > 0.8 else False if object_xpos[1] < 0.7 else np.random.randint(0, 2, dtype=bool)
 
             #the barrier will always have a distance of at least 0.1 to the object and 0.2 to the table edge
-            if place_in_front:
+            if self.place_in_front:
                 pos1 = self.np_random.uniform(0.62, object_xpos[1] - 0.1)
             else:
                 pos1 = self.np_random.uniform(object_xpos[1] + 0.1, 0.85)
             barrier_pos = np.array([pos0, pos1, height])
-        self.sim.model.body_pos[site_id] = barrier_pos
+        self.sim.model.body_pos[body_id] = barrier_pos
