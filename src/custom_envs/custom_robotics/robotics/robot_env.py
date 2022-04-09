@@ -79,9 +79,10 @@ class RobotEnv(gym.GoalEnv):
         self._step_callback()
         obs = self._get_obs()
 
-        done = False
+        done = self._check_barrier_contact()
         info = {
             "is_success": self._is_success(obs["achieved_goal"], self.goal),
+            "cost": self._compute_cost()
         }
         reward = self.compute_reward(obs["achieved_goal"], self.goal, info)
         return obs, reward, done, info
@@ -179,4 +180,12 @@ class RobotEnv(gym.GoalEnv):
         """A custom callback that is called after stepping the simulation. Can be used
         to enforce additional constraints on the simulation state.
         """
+        pass
+
+    def _check_barrier_contact(self):
+        """If a barrier is present, this should return true if anything has contact to it."""
+        return False
+
+    def _compute_cost(self):
+        """Calculate the cost of the current environemt state"""
         pass

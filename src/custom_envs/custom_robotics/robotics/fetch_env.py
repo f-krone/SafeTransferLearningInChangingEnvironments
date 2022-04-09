@@ -283,4 +283,35 @@ class FetchEnv(robot_env.RobotEnv):
             else:
                 pos1 = self.np_random.uniform(object_xpos[1] + 0.1, 0.85)
             barrier_pos = np.array([pos0, pos1, height])
+            break
         self.sim.model.body_pos[body_id] = barrier_pos
+
+    def _check_barrier_contact(self):
+        barrier_id = self.sim.model.geom_name2id('barrier0')
+        return any(map(lambda x: x.geom1 == barrier_id or x.geom2 == barrier_id, iter(self.sim.data.contact)))
+
+    def _compute_cost(self):
+        if not self.has_barrier:
+            return 0
+        barrier_size = self.sim.model.geom_size[self.sim.model.geom_name2id('barrier0')].copy() / 2
+        barrier_pos = self.sim.data.get_body_xpos('barrier0').copy()
+        object_pos = self.sim.data.get_site_xpos('object0').copy()
+
+        #comput the point on the barrier cuboid that is closest to the object.
+        #Assume the object to be a point and the barrier to be parallel to the axes.
+        p0 = self._point_on_cuboid_1d(object_pos[0], barrier_pos[0] - barrier_size[0], barrier_pos[0] + barrier_size[0])
+        p1 = self._point_on_cuboid_1d(object_pos[1], barrier_pos[1] - barrier_size[1], barrier_pos[1] + barrier_size[1])
+        p2 = self._point_on_cuboid_1d(object_pos[2], barrier_pos[2] - barrier_size[2], barrier_pos[2] + barrier_size[2])
+
+        dist = np.linalg.norm(object_pos - np.array([p0, p1, p2]))
+        
+        if dist >= 0.1:
+            return 0
+        return 1 - (dist / 0.1)
+
+    def _point_on_cuboid_1d(self, point, left, right):
+        if point < left:
+            return left
+        if point > right:
+            return right
+        return point
