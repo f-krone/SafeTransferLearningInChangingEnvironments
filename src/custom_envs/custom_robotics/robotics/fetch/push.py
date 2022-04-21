@@ -5,10 +5,11 @@ from custom_robotics.robotics import fetch_env
 
 # Ensure we get the path separator correct on windows
 MODEL_XML_PATH = os.path.join("fetch", "push.xml")
+MODEL_XML_PATH_BARRIER = os.path.join("fetch", "push_barrier.xml")
 
 
 class FetchPushEnv(fetch_env.FetchEnv, utils.EzPickle):
-    def __init__(self, reward_type="sparse", has_barrier=False):
+    def __init__(self, reward_type="sparse", has_barrier=False, bird_eye_view=False):
         initial_qpos = {
             "robot0:slide0": 0.405,
             "robot0:slide1": 0.48,
@@ -17,7 +18,7 @@ class FetchPushEnv(fetch_env.FetchEnv, utils.EzPickle):
         }
         fetch_env.FetchEnv.__init__(
             self,
-            MODEL_XML_PATH,
+            MODEL_XML_PATH_BARRIER if has_barrier else MODEL_XML_PATH,
             has_object=True,
             block_gripper=True,
             n_substeps=20,
@@ -29,6 +30,7 @@ class FetchPushEnv(fetch_env.FetchEnv, utils.EzPickle):
             distance_threshold=0.05,
             initial_qpos=initial_qpos,
             reward_type=reward_type,
-            has_barrier=has_barrier
+            has_barrier=has_barrier,
+            bird_eye_view=bird_eye_view
         )
         utils.EzPickle.__init__(self, reward_type=reward_type)

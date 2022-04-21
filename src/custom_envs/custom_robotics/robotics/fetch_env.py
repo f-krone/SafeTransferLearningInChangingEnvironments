@@ -26,6 +26,7 @@ class FetchEnv(robot_env.RobotEnv):
         initial_qpos,
         reward_type,
         has_barrier = False,
+        bird_eye_view = False
     ):
         """Initializes a new Fetch environment.
 
@@ -53,6 +54,7 @@ class FetchEnv(robot_env.RobotEnv):
         self.distance_threshold = distance_threshold
         self.reward_type = reward_type
         self.has_barrier = has_barrier
+        self.bird_eye_view = bird_eye_view
 
         super(FetchEnv, self).__init__(
             model_path=model_path,
@@ -174,9 +176,14 @@ class FetchEnv(robot_env.RobotEnv):
         lookat = self.sim.data.body_xpos[body_id]
         for idx, value in enumerate(lookat):
             self.viewer.cam.lookat[idx] = value
-        self.viewer.cam.distance = 2.5
-        self.viewer.cam.azimuth = 132.0
-        self.viewer.cam.elevation = -14.0
+        if self.bird_eye_view:
+            self.viewer.cam.distance = 1
+            self.viewer.cam.azimuth = 180.0
+            self.viewer.cam.elevation = -50.0
+        else:
+            self.viewer.cam.distance = 2.5
+            self.viewer.cam.azimuth = 132.0
+            self.viewer.cam.elevation = -14.0
 
     def _render_callback(self):
         # Visualize target.
