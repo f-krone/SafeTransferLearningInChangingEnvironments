@@ -3,5 +3,7 @@ from wrappers.wrappers import RemoveGoal
 from wrappers.wrappers import AddImage
 from wrappers.wrappers import PixelObservation
 from wrappers.wrappers import CropImage
+from wrappers.wrappers import RemoveRobot
+from wrappers.wrappers import CostWrapper
 from wrappers.frame_stack import FrameStack
 from wrappers.preference_reward.preference_reward import PreferenceReward

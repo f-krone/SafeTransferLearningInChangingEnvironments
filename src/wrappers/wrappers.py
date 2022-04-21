@@ -1,6 +1,7 @@
 import numpy as np
 
-from gym import ObservationWrapper, spaces
+from gym import Env, ObservationWrapper, Wrapper, spaces
+from torch.utils.tensorboard import SummaryWriter
 
 
 class ImageAndRobot(ObservationWrapper):
@@ -105,4 +106,55 @@ class CropImage(ObservationWrapper):
     
     def observation(self, observation):
         observation['image'] = observation['image'][int(0.15*self.height): int(0.65*self.height), int(0.2*self.width):int(0.7*self.width)]
+        return observation
+
+class RemoveRobot(ObservationWrapper):
+
+    def __init__(self, env):
+        super(RemoveRobot, self).__init__(env)
+        self.observation_space = spaces.Dict(
+            dict(
+                desired_goal=env.observation_space['desired_goal'],
+                achieved_goal=env.observation_space['achieved_goal'],
+                observation=env.observation_space['observation'],
+            )
+        )
+
+    def observation(self, observation):
+        obs = {
+            'observation': observation['observation'],
+            'desired_goal': observation['desired_goal'],
+            'achieved_goal': observation['achieved_goal']
+        }
+        return obs
+
+class CostWrapper(Wrapper):
+    def __init__(self, env: Env, cost_factor = 1, tensorboard_log: str=None) -> None:
+        super().__init__(env)
+        self.tensorboard_log = tensorboard_log
+        if tensorboard_log != None:
+            self.writer = SummaryWriter(log_dir=tensorboard_log)
+        else:
+            self.writer = None
+        self.reward_sum = 0
+        self.cost_sum = 0
+        self.logged = False
+        self.cost_factor = cost_factor
+
+    def step(self, action):
+        observation, reward, done, info = self.env.step(action)
+        self.reward_sum += reward
+        self.cost_sum += info['cost']
+        self.logged = True
+        return observation, reward - self.cost_factor * info['cost'], done, info
+
+    
+    def reset(self, **kwargs):
+        if self.writer != None and self.logged:
+            self.writer.add_scalar('cost/reward', self.reward_sum)
+            self.writer.add_scalar('cost/cost', self.cost_sum)
+        self.reward_sum = 0
+        self.cost_sum = 0
+        self.logged = False
+        observation = self.env.reset(**kwargs)
         return observation

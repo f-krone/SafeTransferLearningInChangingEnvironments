@@ -25,7 +25,7 @@ class FetchEnv(robot_env.RobotEnv):
         distance_threshold,
         initial_qpos,
         reward_type,
-        has_barrier = True,
+        has_barrier = False,
     ):
         """Initializes a new Fetch environment.
 
@@ -125,6 +125,12 @@ class FetchEnv(robot_env.RobotEnv):
             object_pos = (
                 object_rot
             ) = object_velp = object_velr = object_rel_pos = np.zeros(0)
+        if self.has_barrier:
+            barrier_pos = self.sim.data.get_body_xpos("barrier0")
+            barrier_size = self.sim.model.geom_size[self.sim.model.geom_name2id('barrier0')]
+        else:
+            barrier_pos = []
+            barrier_size = []
         gripper_state = robot_qpos[-2:]
         gripper_vel = (
             robot_qvel[-2:] * dt
@@ -145,6 +151,8 @@ class FetchEnv(robot_env.RobotEnv):
                 object_velr.ravel(),
                 grip_velp,
                 gripper_vel,
+                barrier_pos,
+                barrier_size,
             ]
         )
         robot = np.concatenate([
@@ -283,10 +291,10 @@ class FetchEnv(robot_env.RobotEnv):
             else:
                 pos1 = self.np_random.uniform(object_xpos[1] + 0.1, 0.85)
             barrier_pos = np.array([pos0, pos1, height])
-            break
         self.sim.model.body_pos[body_id] = barrier_pos
 
     def _check_barrier_contact(self):
+        return False
         barrier_id = self.sim.model.geom_name2id('barrier0')
         return any(map(lambda x: x.geom1 == barrier_id or x.geom2 == barrier_id, iter(self.sim.data.contact)))
 
@@ -294,20 +302,26 @@ class FetchEnv(robot_env.RobotEnv):
         if not self.has_barrier:
             return 0
         barrier_size = self.sim.model.geom_size[self.sim.model.geom_name2id('barrier0')].copy() / 2
-        barrier_pos = self.sim.data.get_body_xpos('barrier0').copy()
-        object_pos = self.sim.data.get_site_xpos('object0').copy()
+        barrier_pos = self.sim.data.get_body_xpos('barrier0')
+        object_pos = self.sim.data.get_site_xpos('object0')
+        grip_pos = self.sim.data.get_site_xpos("robot0:grip")
 
-        #comput the point on the barrier cuboid that is closest to the object.
-        #Assume the object to be a point and the barrier to be parallel to the axes.
-        p0 = self._point_on_cuboid_1d(object_pos[0], barrier_pos[0] - barrier_size[0], barrier_pos[0] + barrier_size[0])
-        p1 = self._point_on_cuboid_1d(object_pos[1], barrier_pos[1] - barrier_size[1], barrier_pos[1] + barrier_size[1])
-        p2 = self._point_on_cuboid_1d(object_pos[2], barrier_pos[2] - barrier_size[2], barrier_pos[2] + barrier_size[2])
+        object_dist = self._point_cuboid_distance(object_pos, barrier_pos, barrier_size)
+        grip_dist = self._point_cuboid_distance(grip_pos, barrier_pos, barrier_size)
 
-        dist = np.linalg.norm(object_pos - np.array([p0, p1, p2]))
-        
+        dist = min(object_dist, grip_dist)
         if dist >= 0.1:
             return 0
         return 1 - (dist / 0.1)
+
+    def _point_cuboid_distance(self, point, barrier_pos, barrier_size):
+        #Compute the point on the barrier cuboid that is closest to the object.
+        #Assume the object to be a point and the barrier to be parallel to the axes.
+        p0 = self._point_on_cuboid_1d(point[0], barrier_pos[0] - barrier_size[0], barrier_pos[0] + barrier_size[0])
+        p1 = self._point_on_cuboid_1d(point[1], barrier_pos[1] - barrier_size[1], barrier_pos[1] + barrier_size[1])
+        p2 = self._point_on_cuboid_1d(point[2], barrier_pos[2] - barrier_size[2], barrier_pos[2] + barrier_size[2])
+        return np.linalg.norm(point - np.array([p0, p1, p2]))
+
 
     def _point_on_cuboid_1d(self, point, left, right):
         if point < left:
