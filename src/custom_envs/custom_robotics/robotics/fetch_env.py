@@ -178,8 +178,8 @@ class FetchEnv(robot_env.RobotEnv):
             self.viewer.cam.lookat[idx] = value
         if self.bird_eye_view:
             self.viewer.cam.distance = 1
-            self.viewer.cam.azimuth = 180.0
-            self.viewer.cam.elevation = -50.0
+            self.viewer.cam.azimuth = 140.0
+            self.viewer.cam.elevation = -40.0
         else:
             self.viewer.cam.distance = 2.5
             self.viewer.cam.azimuth = 132.0
