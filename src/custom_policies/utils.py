@@ -15,3 +15,9 @@ def conv_output_shape(h_w, kernel_size=1, stride=1, pad=0):
         h = floor( (h_w[0] + (2 * pad) - kernel_size[0])/ stride) + 1
         w = floor( (h_w[1] + (2 * pad) - kernel_size[1])/ stride) + 1
         return h, w
+
+def conv_output_shape_repeat(h_w, kernel_size=1, stride=1, pad=0, layers=1):
+    h, w = h_w
+    for _ in range(layers):
+        h, w = conv_output_shape((h, w), kernel_size, stride, pad)
+    return h, w

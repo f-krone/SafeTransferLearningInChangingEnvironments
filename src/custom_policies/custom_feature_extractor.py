@@ -1,10 +1,11 @@
 import gym
 import torch as th
 import torch.nn as nn
+import torchvision.models as models
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor, NatureCNN
 from stable_baselines3.common.preprocessing import get_flattened_obs_dim
 from .stack_module import StackModule
-from custom_policies.utils import conv_output_shape_3d
+from custom_policies.utils import conv_output_shape_3d, conv_output_shape, conv_output_shape_repeat
 
 class CustomFeatureExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space: gym.spaces.Dict, custom_cnn: bool = True):
@@ -21,24 +22,45 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         for key, subspace in observation_space.spaces.items():
             if key == "image":
                 if custom_cnn:
+                    output_height, output_width = conv_output_shape_repeat((subspace.shape[1], subspace.shape[2]), 3, 2, 1, 4)
                     extractors[key] = nn.Sequential(
-                        nn.Conv2d(subspace.shape[0], 16, kernel_size=3, padding = 1),
+                        nn.Conv2d(subspace.shape[0], 16, kernel_size=3, stride=2, padding=1),
                         nn.ReLU(),
-                        nn.Conv2d(16, 32, kernel_size=3, padding = 1),
+                        nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=1),
                         nn.ReLU(),
-                        nn.MaxPool2d(kernel_size=2, stride=2),
-                        nn.Conv2d(32, 64, kernel_size=3, padding = 1),
+                        nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1),
                         nn.ReLU(),
-                        nn.MaxPool2d(kernel_size=2, stride=2),
-                        nn.Conv2d(64, 128, kernel_size=3, padding = 1),
+                        nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1),
                         nn.ReLU(),
-                        nn.AvgPool2d(kernel_size=(subspace.shape[1] // 4, subspace.shape[2] // 4)),
-                        nn.Flatten()
+                        nn.Flatten(),
+                        nn.Linear(output_height * output_width * 128, 1024),
+                        nn.ReLU()
                     )
-                    total_concat_size += 128
+                    total_concat_size += 1024
                 else:
-                    extractors[key] = NatureCNN(subspace, 256)
-                    total_concat_size += 256
+                    output_height, output_width = conv_output_shape((subspace.shape[1], subspace.shape[2]), 7, 2, 1)
+                    output_height, output_width = conv_output_shape_repeat((output_height, output_width), 3, 2, 1, 3)
+
+                    resnet = models.resnet18(pretrained=True)
+                    #for param in resnet.parameters():
+                    #    param.requires_grad = False
+
+                    extractors[key] = nn.Sequential(
+                        resnet.conv1,
+                        resnet.bn1,
+                        nn.ReLU(inplace=True),
+                        resnet.layer1,
+                        nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1),
+                        nn.ReLU(inplace=True),
+                        nn.Conv2d(128, 128, kernel_size=3, stride=2, padding=1),
+                        nn.ReLU(inplace=True),
+                        nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1),
+                        nn.ReLU(inplace=True),
+                        nn.Flatten(),
+                        nn.Linear(output_height * output_width * 256, 1024),
+                        nn.ReLU(inplace=True)
+                    )
+                    total_concat_size += 1024
             elif key == "frame_stack_3d":
                 #for a stack of 4 frames, this produces an output of a single frame
                 output_height, output_width, output_depth = subspace.shape[2], subspace.shape[3], subspace.shape[1]
