@@ -60,9 +60,11 @@ def main():
     with open(os.path.join(args.work_dir, 'args.json'), 'w') as f:
         json.dump(vars(args), f, sort_keys=True, indent=4)
     
+    L = Logger(args.work_dir, use_tb=args.save_tb, config=args.agent)
+
     # prepare env
-    env = make_envs(args)
-    eval_env = make_envs(args)
+    env = make_envs(args, False, logger=L)
+    eval_env = make_envs(args, True)
 
     # prepare memory
     action_shape = env.action_space.shape
@@ -87,7 +89,7 @@ def main():
     run = wandb.init(
         project="fetch-push-ensemble-preference",
         entity="f-krone",
-        name="SAC_ae_no_ensemble",
+        name="SAC_ae_ensemble_lower_lr_mj150",
         config=args,
         #sync_tensorboard=True,  # auto-upload sb3's tensorboard metrics
         monitor_gym=True,  # auto-upload the videos of agents playing the game
@@ -164,7 +166,7 @@ def main():
 
         obs = next_obs
         episode_step += 1
-
+    run.finish()
 
     
 if __name__ == '__main__':

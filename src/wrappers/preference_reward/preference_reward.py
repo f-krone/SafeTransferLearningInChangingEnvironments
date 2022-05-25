@@ -6,7 +6,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 class PreferenceReward(Wrapper):
     #TODO calc max_mse from the env.action_space
-    def __init__(self, env: Env, preferenceModel: ModelWrapper, max_mse: float, alpha: Union[int, Callable[[float], float], str], tensorboard_log: str=None) -> None:
+    def __init__(self, env: Env, preferenceModel: ModelWrapper, max_mse: float, alpha: Union[int, Callable[[float], float], str], tensorboard_log: str=None, logger=None) -> None:
         super().__init__(env)
         self.preferenceModel = preferenceModel
         self.alpha = alpha
@@ -17,6 +17,7 @@ class PreferenceReward(Wrapper):
             self.writer = SummaryWriter(log_dir=tensorboard_log)
         else:
             self.writer = None
+        self.logger = logger
         self.env_reward_mean = 0
         self.internal_rewards = []
         self.external_rewards = []
@@ -52,6 +53,10 @@ class PreferenceReward(Wrapper):
 
     
     def reset(self, **kwargs):
+        if self.env_reward_mean == 0:
+            self.env_reward_mean = np.sum(self.external_rewards)
+        else:
+            self.env_reward_mean = 0.05 * np.sum(self.external_rewards) + 0.95 * self.env_reward_mean
         if self.writer != None and len(self.internal_rewards) > 0:
             self.writer.add_scalar('preference_reward/ep_internal_reward_mean', np.mean(self.internal_rewards))
             self.writer.add_scalar('preference_reward/ep_external_reward_mean', np.mean(self.external_rewards))
@@ -59,11 +64,15 @@ class PreferenceReward(Wrapper):
             self.writer.add_scalar('preference_reward/ep_action_error_mean', np.mean(self.actions_errors))
             self.writer.add_scalar('preference_reward/ep_calc_reward_mean', np.mean(self.calc_rewards))
             self.writer.add_scalar('preference_reward/alpha', np.mean(self._get_alpha()))
-        if self.env_reward_mean == 0:
-            self.env_reward_mean = np.sum(self.external_rewards)
-        else:
-            self.env_reward_mean = 0.05 * np.sum(self.external_rewards) + 0.95 * self.env_reward_mean
-        self.writer.add_scalar('preference_reward/env_reward_moving_avg', np.mean(self.env_reward_mean))
+            self.writer.add_scalar('preference_reward/env_reward_moving_avg', np.mean(self.env_reward_mean))
+        if self.logger != None and len(self.internal_rewards) > 0:
+            self.logger.log('train/preference_reward/ep_internal_reward_mean', np.mean(self.internal_rewards), self.steps)
+            self.logger.log('train/preference_reward/ep_external_reward_mean', np.mean(self.external_rewards), self.steps)
+            self.logger.log('train/preference_reward/ep_confidence_mean', np.mean(self.confidences), self.steps)
+            self.logger.log('train/preference_reward/ep_action_error_mean', np.mean(self.actions_errors), self.steps)
+            self.logger.log('train/preference_reward/ep_calc_reward_mean', np.mean(self.calc_rewards), self.steps)
+            self.logger.log('train/preference_reward/alpha', np.mean(self._get_alpha()), self.steps)
+            self.logger.log('train/preference_reward/env_reward_moving_avg', np.mean(self.env_reward_mean), self.steps)
         self.internal_rewards = []
         self.external_rewards = []
         self.confidences = []

@@ -21,23 +21,23 @@ def parse_args():
     parser.add_argument('--action_repeat', default=1, type=int)
     parser.add_argument('--frame_stack', default=3, type=int)
     # replay buffer
-    parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
+    parser.add_argument('--replay_buffer_capacity', default=300000, type=int)
     # train
     parser.add_argument('--init_steps', default=1000, type=int)
-    parser.add_argument('--num_train_steps', default=1000000, type=int)
+    parser.add_argument('--num_train_steps', default=2000000, type=int)
     parser.add_argument('--batch_size', default=128, type=int)
     parser.add_argument('--hidden_dim', default=1024, type=int)
     # eval
     parser.add_argument('--eval_freq', default=10000, type=int)
     parser.add_argument('--num_eval_episodes', default=10, type=int)
     # critic
-    parser.add_argument('--critic_lr', default=1e-3, type=float)
+    parser.add_argument('--critic_lr', default=1e-5, type=float)
     parser.add_argument('--critic_beta', default=0.9, type=float)
     parser.add_argument('--critic_tau', default=0.01, type=float) 
     parser.add_argument('--critic_encoder_tau', default=0.05, type=float) 
     parser.add_argument('--critic_target_update_freq', default=2, type=int)
     # actor
-    parser.add_argument('--actor_lr', default=1e-3, type=float)
+    parser.add_argument('--actor_lr', default=1e-5, type=float)
     parser.add_argument('--actor_beta', default=0.9, type=float)
     parser.add_argument('--actor_log_std_min', default=-10, type=float)
     parser.add_argument('--actor_log_std_max', default=2, type=float)
@@ -61,7 +61,7 @@ def parse_args():
 
     # sac_ae
     parser.add_argument('--sacae_update_freq', default=1, type=int)
-    parser.add_argument('--sacae_autoencoder_lr', default=1e-3, type=float)
+    parser.add_argument('--sacae_autoencoder_lr', default=1e-5, type=float)
     parser.add_argument('--sacae_autoencoder_beta', default=0.9, type=float)
     parser.add_argument('--sacae_encoder_tau', default=0.05, type=float)
 
@@ -84,8 +84,8 @@ def parse_args():
     parser.add_argument('--work_dir', default='./log', type=str)
     parser.add_argument('--save_tb', default=True, action='store_true')
     parser.add_argument('--save_buffer', default=False, action='store_true')
-    parser.add_argument('--save_video', default=False, action='store_true')
-    parser.add_argument('--save_model', default=False, action='store_true')
+    parser.add_argument('--save_video', default=True, action='store_true')
+    parser.add_argument('--save_model', default=True, action='store_true')
     parser.add_argument('--detach_encoder', default=False, action='store_true')
     parser.add_argument('--log_interval', default=25, type=int)
     parser.add_argument('--tag', default='', type=str)

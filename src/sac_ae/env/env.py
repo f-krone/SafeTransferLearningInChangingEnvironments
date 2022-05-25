@@ -1,11 +1,15 @@
-import imp
-import dmc2gym
+import sys
+sys.path.append("..")
+
 import gym
 import numpy as np
 from collections import deque
 import custom_robotics
+import wrappers
+from stable_baselines3 import SAC
+from stable_baselines3.common.vec_env import DummyVecEnv
 
-def make_envs(args):
+def make_envs(args, is_eval=False, logger=None):
     """env = dmc2gym.make(
         domain_name=args.domain_name,
         task_name=args.task_name,
@@ -18,18 +22,27 @@ def make_envs(args):
     )"""
     env = gym.make(args.domain_name + '-' + args.task_name)
     max_episode_steps = env._max_episode_steps
+    env.seed(args.seed)
+    if not is_eval:
+        def load_model(file_name):
+            def make_ensemble_env():
+                    env = gym.make('FetchPushDense-v1')
+                    return env
+            ensemble_env = DummyVecEnv([make_ensemble_env])
+            return SAC.load(file_name, ensemble_env)
+        model_wrapper = wrappers.ModelWrapper(list(map(lambda i: load_model( f'../../output/fetch-push-ensemble/SAC_ensemble_' + str(i)), range(3))), obs_keys=['achieved_goal', 'desired_goal', 'observation'])
+        env = wrappers.PreferenceReward(env, model_wrapper, 4, 1.0, logger=logger)
     env = PixelObservation(
         env,
-        height=args.env_image_size,
-        width=args.env_image_size)
-    env.seed(args.seed)
+        height=2*args.env_image_size,
+        width=2*args.env_image_size)
+    env = CropImage(env)
     env = FrameStack(env, k=args.frame_stack, max_episode_steps=max_episode_steps)
     return env
 
 class PixelObservation(gym.ObservationWrapper):
-
     def __init__(self, env, width=128, height=128):
-        super(gym.ObservationWrapper, self).__init__(env)
+        super(PixelObservation, self).__init__(env)
         self.width = width
         self.height = height
         low, high = (0, 255)
@@ -39,6 +52,19 @@ class PixelObservation(gym.ObservationWrapper):
         obs = self.env.render(mode='rgb_array', width=self.width, height=self.height)
         obs = obs.transpose(2, 0, 1).copy()
         return obs
+
+class CropImage(gym.ObservationWrapper):
+    def __init__(self, env):
+        super(CropImage, self).__init__(env)
+        self.width = env.observation_space.shape[2]
+        self.height = env.observation_space.shape[1]
+        low, high = (0, 255)
+        self.observation_space = gym.spaces.Box(shape=(3, int(0.5 * self.height), int(0.5 * self.width)), low=low, high=high, dtype=np.uint8)
+
+    def observation(self, observation):
+        observation = observation[:, int(0.15*self.height): int(0.65*self.height), int(0.2*self.width):int(0.7*self.width)]
+        return observation
+
 
 class FrameStack(gym.Wrapper):
     def __init__(self, env, k, max_episode_steps):
