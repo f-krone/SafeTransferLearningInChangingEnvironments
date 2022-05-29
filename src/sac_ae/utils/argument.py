@@ -16,8 +16,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     ##### Common #####
     # environment
-    parser.add_argument('--domain_name', default='CustomFetchPushDense')
-    parser.add_argument('--task_name', default='v0')
+    parser.add_argument('--env_name', default='CustomFetchPushDense-v0')
     parser.add_argument('--action_repeat', default=1, type=int)
     parser.add_argument('--frame_stack', default=3, type=int)
     # replay buffer
@@ -89,6 +88,16 @@ def parse_args():
     parser.add_argument('--detach_encoder', default=False, action='store_true')
     parser.add_argument('--log_interval', default=25, type=int)
     parser.add_argument('--tag', default='', type=str)
+
+    #preferenece reward
+    parser.add_argument('--pr_files', default=None, type=str)
+    parser.add_argument('--pr_size', default=1, type=int)
+    parser.add_argument('--pr_env', default=None, type=str)
+
+    #wandb
+    parser.add_argument('--wandb_project', default=None, type=str)
+    parser.add_argument('--wandb_name', default=None, type=str)
+
     args = parser.parse_args()
     
     # verification

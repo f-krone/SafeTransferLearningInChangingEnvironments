@@ -45,9 +45,8 @@ def main():
     args = parse_args()
     set_seed_everywhere(args.seed)
     
-    ts = time.strftime("%m-%d", time.gmtime())    
-    env_name = args.domain_name + '-' + args.task_name
-    exp_name = env_name + '-' + ts + '-im' + str(args.env_image_size) +'-b'  \
+    ts = time.strftime("%m-%d-%H-%M", time.gmtime())
+    exp_name = args.env_name + '-' + ts + '-im' + str(args.env_image_size) +'-b'  \
     + str(args.batch_size) + '-s' + str(args.seed)  + '-' + args.agent
     if args.tag:
         exp_name = exp_name + '-' + args.tag
@@ -59,7 +58,23 @@ def main():
     
     with open(os.path.join(args.work_dir, 'args.json'), 'w') as f:
         json.dump(vars(args), f, sort_keys=True, indent=4)
+
+    #logger_config = args.agent + '_pr' if args.pr_files != None else args.agent
     
+    run = None
+    if (args.wandb_project != None and args.wandb_name != None):
+        run = wandb.init(
+            project=args.wandb_project,
+            entity="f-krone",
+            name=args.wandb_name,
+            config=args,
+            #sync_tensorboard=True,  # auto-upload sb3's tensorboard metrics
+            monitor_gym=True,  # auto-upload the videos of agents playing the game
+            save_code=True,  # optional
+        )
+        wandb.tensorboard.patch(root_logdir=f'{args.work_dir}/tb', pytorch=True)
+    else:
+        print("Not using Weight&Biases. Please specify project and name.")
     L = Logger(args.work_dir, use_tb=args.save_tb, config=args.agent)
 
     # prepare env
@@ -85,20 +100,9 @@ def main():
         action_shape=action_shape,
         args=args
     )
-
-    run = wandb.init(
-        project="fetch-push-ensemble-preference",
-        entity="f-krone",
-        name="SAC_ae_ensemble_lower_lr_mj150",
-        config=args,
-        #sync_tensorboard=True,  # auto-upload sb3's tensorboard metrics
-        monitor_gym=True,  # auto-upload the videos of agents playing the game
-        save_code=True,  # optional
-    )
-    wandb.tensorboard.patch(root_logdir=f'{args.work_dir}/tb', pytorch=True)
     
     # run
-    L = Logger(args.work_dir, use_tb=args.save_tb, config=args.agent)
+    #L = Logger(args.work_dir, use_tb=args.save_tb, config=args.agent)
 
     episode, episode_reward, done = 0, 0, True
     start_time = time.time()
@@ -166,7 +170,9 @@ def main():
 
         obs = next_obs
         episode_step += 1
-    run.finish()
+    
+    if run != None:
+        run.finish()
 
     
 if __name__ == '__main__':

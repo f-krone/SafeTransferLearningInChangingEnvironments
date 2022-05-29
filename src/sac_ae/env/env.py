@@ -20,23 +20,28 @@ def make_envs(args, is_eval=False, logger=None):
         width=args.env_image_size,
         frame_skip=args.action_repeat
     )"""
-    env = gym.make(args.domain_name + '-' + args.task_name)
+    env = gym.make(args.env_name)
     max_episode_steps = env._max_episode_steps
     env.seed(args.seed)
-    if not is_eval:
+    if not is_eval and args.pr_files != None:
         def load_model(file_name):
-            def make_ensemble_env():
-                    env = gym.make('FetchPushDense-v1')
-                    return env
-            ensemble_env = DummyVecEnv([make_ensemble_env])
-            return SAC.load(file_name, ensemble_env)
-        model_wrapper = wrappers.ModelWrapper(list(map(lambda i: load_model( f'../../output/fetch-push-ensemble/SAC_ensemble_' + str(i)), range(3))), obs_keys=['achieved_goal', 'desired_goal', 'observation'])
+            if args.pr_env != None:
+                def make_ensemble_env():
+                        env = gym.make(args.pr_env)
+                        return env
+                ensemble_env = DummyVecEnv([make_ensemble_env])
+                return SAC.load(file_name, ensemble_env)
+            return SAC.load(file_name)
+        model_wrapper = wrappers.ModelWrapper(list(map(lambda i: load_model(args.pr_files + str(i)), range(args.pr_size))), obs_keys=['achieved_goal', 'desired_goal', 'observation'])
         env = wrappers.PreferenceReward(env, model_wrapper, 4, 1.0, logger=logger)
+    crop_img = args.env_name.__contains__('Fetch') and not args.env_name.__contains__('Bird')
+    img_size = 2*args.env_image_size if crop_img else args.env_image_size
     env = PixelObservation(
         env,
-        height=2*args.env_image_size,
-        width=2*args.env_image_size)
-    env = CropImage(env)
+        height=img_size,
+        width=img_size)
+    if crop_img:
+        env = CropImage(env)
     env = FrameStack(env, k=args.frame_stack, max_episode_steps=max_episode_steps)
     return env
 
