@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 
 class SAC_Model(nn.Module):
-    def __init__(self, obs_shape, action_shape, hidden_dim, encoder_feature_dim, log_std_min, log_std_max, num_layers, num_filters, device):
+    def __init__(self, obs_shape, action_shape, hidden_dim, encoder_feature_dim, log_std_min, log_std_max, num_layers, num_filters, device, robot_shape):
         super().__init__()
 
         shared_cnn = m.SharedCNN(obs_shape = obs_shape,
@@ -24,15 +24,18 @@ class SAC_Model(nn.Module):
                              action_dim = action_shape[0],
                              hidden_dim = hidden_dim,
                              log_std_min = log_std_min,
-                             log_std_max = log_std_max).to(device)
+                             log_std_max = log_std_max,
+                             robot_shape = robot_shape).to(device)
         
         self.critic = m.Critic(encoder = critic_encoder,
                                action_dim = action_shape[0],
-                               hidden_dim = hidden_dim).to(device)
+                               hidden_dim = hidden_dim,
+                               robot_shape = robot_shape).to(device)
         
         self.critic_target = m.Critic(encoder = critic_encoder_target,
                                       action_dim = action_shape[0],
-                                      hidden_dim = hidden_dim).to(device)
+                                      hidden_dim = hidden_dim,
+                                      robot_shape = robot_shape).to(device)
         self.critic_target.load_state_dict(self.critic.state_dict())
 
 
@@ -58,16 +61,16 @@ class CURL_Model(SAC_Model):
 
 class SACAE_Model(SAC_Model):
     def __init__(self, obs_shape, action_shape, hidden_dim, encoder_feature_dim, log_std_min, 
-                log_std_max, num_layers, num_filters, device):
+                log_std_max, num_layers, num_filters, device, robot_shape):
         super().__init__(obs_shape, action_shape, hidden_dim, encoder_feature_dim, log_std_min, 
-                         log_std_max, num_layers, num_filters, device)
+                         log_std_max, num_layers, num_filters, device, robot_shape)
 
         decoder = m.Decoder(num_channels = obs_shape[0], 
                             feature_dim = encoder_feature_dim, 
                             num_layers = num_layers,
                             num_filters = num_filters)
 
-        self.autoencoder = m.AutoEncoder(self.critic.encoder, decoder).to(device)
+        self.autoencoder = m.AutoEncoder(self.critic.encoder, decoder, robot_shape > 0).to(device)
 
 
 class ATC_Model(nn.Module):

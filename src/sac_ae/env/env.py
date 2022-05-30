@@ -39,63 +39,108 @@ def make_envs(args, is_eval=False, logger=None):
     env = PixelObservation(
         env,
         height=img_size,
-        width=img_size)
+        width=img_size,
+        robot=args.robot_shape > 0)
     if crop_img:
-        env = CropImage(env)
-    env = FrameStack(env, k=args.frame_stack, max_episode_steps=max_episode_steps)
+        env = CropImage(env, robot=args.robot_shape > 0)
+    env = FrameStack(env, k=args.frame_stack, max_episode_steps=max_episode_steps, robot=args.robot_shape > 0)
     return env
 
 class PixelObservation(gym.ObservationWrapper):
-    def __init__(self, env, width=128, height=128):
+    def __init__(self, env, width=128, height=128, robot=False):
         super(PixelObservation, self).__init__(env)
+        self.robot = robot
         self.width = width
         self.height = height
         low, high = (0, 255)
-        self.observation_space = gym.spaces.Box(shape=(3, height, width), low=low, high=high, dtype=np.uint8)
+        pixel_space = gym.spaces.Box(shape=(3, height, width), low=low, high=high, dtype=np.uint8)
+        if robot:
+            self.observation_space = gym.spaces.Dict(
+                image=pixel_space,
+                robot=env.observation_space['robot']
+            )
+        else:
+            self.observation_space = pixel_space
 
     def observation(self, observation):
         obs = self.env.render(mode='rgb_array', width=self.width, height=self.height)
         obs = obs.transpose(2, 0, 1).copy()
-        return obs
+        if self.robot:
+            return {
+                'image': obs,
+                'robot': observation['robot']
+            }
+        else:
+            return obs
 
 class CropImage(gym.ObservationWrapper):
-    def __init__(self, env):
+    def __init__(self, env, robot=False):
         super(CropImage, self).__init__(env)
-        self.width = env.observation_space.shape[2]
-        self.height = env.observation_space.shape[1]
+        self.robot = robot
+        self.width = env.observation_space['image'].shape[2] if robot else env.observation_space.shape[2]
+        self.height = env.observation_space['image'].shape[1] if robot else env.observation_space.shape[1]
         low, high = (0, 255)
-        self.observation_space = gym.spaces.Box(shape=(3, int(0.5 * self.height), int(0.5 * self.width)), low=low, high=high, dtype=np.uint8)
+        pixel_space = gym.spaces.Box(shape=(3, int(0.5 * self.height), int(0.5 * self.width)), low=low, high=high, dtype=np.uint8)
+        if robot:
+            self.observation_space = gym.spaces.Dict(
+                image=pixel_space,
+                robot=env.observation_space['robot']
+            )
+        else:
+            self.observation_space = pixel_space
 
     def observation(self, observation):
-        observation = observation[:, int(0.15*self.height): int(0.65*self.height), int(0.2*self.width):int(0.7*self.width)]
-        return observation
+        obs = observation['image'] if self.robot else observation
+        obs = obs[:, int(0.15*self.height): int(0.65*self.height), int(0.2*self.width):int(0.7*self.width)]
+        if self.robot:
+            return {
+                'image': obs,
+                'robot': observation['robot']
+            }
+        else:
+            return observation
 
 
 class FrameStack(gym.Wrapper):
-    def __init__(self, env, k, max_episode_steps):
+    def __init__(self, env, k, max_episode_steps, robot=False):
         gym.Wrapper.__init__(self, env)
         self._k = k
         self._frames = deque([], maxlen=k)
-        shp = env.observation_space.shape
-        self.observation_space = gym.spaces.Box(
+        self.robot = robot
+        shp = env.observation_space['image'].shape if robot else env.observation_space.shape
+        pixel_space = gym.spaces.Box(
             low=0,
             high=1,
             shape=((shp[0] * k,) + shp[1:]),
-            dtype=env.observation_space.dtype
+            dtype=env.observation_space['image'].dtype if robot else env.observation_space.dtype
         )
+        if robot:
+            self.observation_space = gym.spaces.Dict(
+                image=pixel_space,
+                robot=env.observation_space['robot']
+            )
+        else:
+            self.observation_space = pixel_space
         self._max_episode_steps = max_episode_steps
 
     def reset(self):
         obs = self.env.reset()
         for _ in range(self._k):
-            self._frames.append(obs)
-        return self._get_obs()
+            self._frames.append(obs['image'] if self.robot else obs)
+        return self._get_obs(obs)
 
     def step(self, action):
         obs, reward, done, info = self.env.step(action)
-        self._frames.append(obs)
-        return self._get_obs(), reward, done, info
+        self._frames.append(obs['image'] if self.robot else obs)
+        return self._get_obs(obs), reward, done, info
 
-    def _get_obs(self):
+    def _get_obs(self, obs):
         assert len(self._frames) == self._k
-        return np.concatenate(list(self._frames), axis=0)
+        pixel =  np.concatenate(list(self._frames), axis=0)
+        if self.robot:
+            return {
+                'image': pixel,
+                'robot': obs['robot']
+            }
+        else:
+            return pixel

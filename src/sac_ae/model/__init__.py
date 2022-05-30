@@ -21,7 +21,8 @@ def make_model(agent_obs_shape, action_shape, args, device):
                       log_std_max = args.actor_log_std_max,
                       num_layers = args.num_layers,
                       num_filters = args.num_filters,
-                      device = device)
+                      device = device,
+                      robot_shape = args.robot_shape)
     else:
         model = Model(obs_shape = agent_obs_shape, 
                       action_shape = action_shape, 

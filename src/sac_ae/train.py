@@ -58,8 +58,6 @@ def main():
     
     with open(os.path.join(args.work_dir, 'args.json'), 'w') as f:
         json.dump(vars(args), f, sort_keys=True, indent=4)
-
-    #logger_config = args.agent + '_pr' if args.pr_files != None else args.agent
     
     run = None
     if (args.wandb_project != None and args.wandb_name != None):
@@ -87,7 +85,7 @@ def main():
     env_obs_shape = (3*args.frame_stack, args.env_image_size, args.env_image_size)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    replay_storage = ReplayBufferStorage(Path(args.work_dir) / 'buffer')
+    replay_storage = ReplayBufferStorage(Path(args.work_dir) / 'buffer', robot=args.robot_shape > 0)
     replay_buffer = None
     
     model = make_model(agent_obs_shape, action_shape, args, device)
@@ -154,7 +152,8 @@ def main():
                                                    obs_shape=env_obs_shape,
                                                    device=device,
                                                    image_size=args.agent_image_size,
-                                                   image_pad=args.image_pad)
+                                                   image_pad=args.image_pad,
+                                                   robot=args.robot_shape > 0)
 
 
             num_updates = 1 if step > args.init_steps else args.init_steps

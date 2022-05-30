@@ -28,6 +28,7 @@ class SAC(object):
         self.log_interval = args.log_interval
         self.discount = args.discount
         self.detach_encoder = args.detach_encoder
+        self.robot = args.robot_shape > 0
         
         self.log_alpha = torch.tensor(np.log(args.init_temperature)).to(device)
         self.log_alpha.requires_grad = True
@@ -57,24 +58,44 @@ class SAC(object):
         return self.log_alpha.exp()
 
     def select_action(self, obs):
-        if obs.shape[-1] != self.image_size:
-            obs = center_crop_image(obs, self.image_size)
+        if self.robot:
+            if obs['image'].shape[-1] != self.image_size:
+                obs['image'] = center_crop_image(obs['image'], self.image_size)
+        else:
+            if obs.shape[-1] != self.image_size:
+                obs = center_crop_image(obs, self.image_size)
             
         with torch.no_grad():
-            obs = torch.FloatTensor(obs).to(self.device)
-            obs = obs.unsqueeze(0)
+            if self.robot:
+                obs['image'] = torch.FloatTensor(obs['image']).to(self.device)
+                obs['robot'] = torch.FloatTensor(obs['robot']).to(self.device)
+                obs['image'] = obs['image'].unsqueeze(0)
+                obs['robot'] = obs['robot'].unsqueeze(0)
+            else:
+                obs = torch.FloatTensor(obs).to(self.device)
+                obs = obs.unsqueeze(0)
             mu, _, _, _ = self.model.actor(
                 obs, compute_pi=False, compute_log_pi=False
             )
             return mu.cpu().data.numpy().flatten()
 
     def sample_action(self, obs):
-        if obs.shape[-1] != self.image_size:
-            obs = center_crop_image(obs, self.image_size)
+        if self.robot:
+            if obs['image'].shape[-1] != self.image_size:
+                obs['image'] = center_crop_image(obs['image'], self.image_size)
+        else:
+            if obs.shape[-1] != self.image_size:
+                obs = center_crop_image(obs, self.image_size)
 
         with torch.no_grad():
-            obs = torch.FloatTensor(obs).to(self.device)
-            obs = obs.unsqueeze(0)
+            if self.robot:
+                obs['image'] = torch.FloatTensor(obs['image']).to(self.device)
+                obs['robot'] = torch.FloatTensor(obs['robot']).to(self.device)
+                obs['image'] = obs['image'].unsqueeze(0)
+                obs['robot'] = obs['robot'].unsqueeze(0)
+            else:
+                obs = torch.FloatTensor(obs).to(self.device)
+                obs = obs.unsqueeze(0)
             mu, pi, _, _ = self.model.actor(obs, compute_log_pi=False)
             return pi.cpu().data.numpy().flatten()
 

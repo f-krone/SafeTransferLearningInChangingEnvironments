@@ -134,11 +134,12 @@ class Decoder(nn.Module):
 
 class Actor(nn.Module):
     """MLP actor network."""
-    def __init__(self, encoder, action_dim, hidden_dim, log_std_min, log_std_max):
+    def __init__(self, encoder, action_dim, hidden_dim, log_std_min, log_std_max, robot_shape):
         super().__init__()
         self.encoder = encoder
+        self.robot = robot_shape > 0
         self.mlp = nn.Sequential(
-            nn.Linear(self.encoder.out_dim, hidden_dim), nn.ReLU(),
+            nn.Linear(self.encoder.out_dim + robot_shape, hidden_dim), nn.ReLU(),
             nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
             nn.Linear(hidden_dim, 2 * action_dim))
         self.log_std_min = log_std_min
@@ -146,7 +147,11 @@ class Actor(nn.Module):
         self.apply(weight_init)
 
     def forward(self, x, compute_pi=True, compute_log_pi=True, detach=False):
-        x = self.encoder(x, detach=detach)
+        image = x['image'] if self.robot else x
+        robot_obs = x['robot'] if self.robot else torch.empty()
+
+        x = self.encoder(image, detach=detach)
+        x = torch.cat([x, robot_obs], dim=1)
         mu, log_std = self.mlp(x).chunk(2, dim=-1)
         log_std = torch.tanh(log_std)
         log_std = self.log_std_min + 0.5 * (self.log_std_max - self.log_std_min) * (log_std + 1)
@@ -175,23 +180,27 @@ class QFunction(nn.Module):
             nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
             nn.Linear(hidden_dim, 1))
 
-    def forward(self, obs, action):
+    def forward(self, obs, action, robot):
         assert obs.size(0) == action.size(0)
-        obs_action = torch.cat([obs, action], dim=1)
+        assert obs.size(0) == robot.size(0)
+
+        obs_action = torch.cat([obs, robot, action], dim=1)
         return self.mlp(obs_action)
 
 
 class Critic(nn.Module):
-    def __init__(self, encoder, action_dim, hidden_dim):
+    def __init__(self, encoder, action_dim, hidden_dim, robot_shape):
         super().__init__()
+        self.robot = robot_shape > 0
         self.encoder = encoder
-        self.Q1 = QFunction(self.encoder.out_dim, action_dim, hidden_dim)
-        self.Q2 = QFunction(self.encoder.out_dim, action_dim, hidden_dim)
+        self.Q1 = QFunction(self.encoder.out_dim + robot_shape, action_dim, hidden_dim)
+        self.Q2 = QFunction(self.encoder.out_dim + robot_shape, action_dim, hidden_dim)
         self.apply(weight_init)
 
     def forward(self, x, action, detach=False):
-        x = self.encoder(x, detach=detach)
-        return self.Q1(x, action), self.Q2(x, action)
+        robot = x['robot'] if self.robot else torch.empty()
+        x = self.encoder(x['image'] if self.robot else x, detach=detach)
+        return self.Q1(x, action, robot), self.Q2(x, action, robot)
 
 
 class CURL(nn.Module):
@@ -218,10 +227,11 @@ class CURL(nn.Module):
 
 
 class AutoEncoder(nn.Module):
-    def __init__(self, encoder, decoder):
+    def __init__(self, encoder, decoder, robot):
         super(AutoEncoder, self).__init__()
         self.encoder = encoder
         self.decoder = decoder
+        self.robot = robot
 
     def recon(self, x):
         h = self.encoder(x)

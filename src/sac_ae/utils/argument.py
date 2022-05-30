@@ -88,6 +88,7 @@ def parse_args():
     parser.add_argument('--detach_encoder', default=False, action='store_true')
     parser.add_argument('--log_interval', default=25, type=int)
     parser.add_argument('--tag', default='', type=str)
+    parser.add_argument('--robot_shape', default=0, type=int)
 
     #preferenece reward
     parser.add_argument('--pr_files', default=None, type=str)

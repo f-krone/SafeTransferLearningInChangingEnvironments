@@ -31,14 +31,15 @@ def save_episode(episode, fn):
 
 def load_episode(fn):
     with fn.open('rb') as f:
-        episode = np.load(f)
+        episode = np.load(f, allow_pickle=True)
         episode = {k: episode[k] for k in episode.keys()}
         return episode
 
 
 class ReplayBufferStorage:
-    def __init__(self, replay_dir):
+    def __init__(self, replay_dir, robot=False):
         self._replay_dir = replay_dir
+        self.robot = robot
         replay_dir.mkdir(exist_ok=True)
         self._current_episode = defaultdict(list)
         self._preload()
@@ -56,7 +57,7 @@ class ReplayBufferStorage:
         
         if done:
             episode = dict()
-            episode['s'] = np.array(self._current_episode['s'], np.uint8)
+            episode['s'] = np.array(self._current_episode['s'], dict if self.robot else np.uint8)
             episode['a'] = np.array(self._current_episode['a'], np.float32)
             episode['r'] = np.array(self._current_episode['r'], np.float32)
 
@@ -173,11 +174,12 @@ class ReplayBufferDataset(IterableDataset):
 
 
 class ReplayBuffer(object):
-    def __init__(self, iter, obs_shape, device, image_size=84, image_pad=None):
+    def __init__(self, iter, obs_shape, device, image_size=84, image_pad=None, robot=False):
         self.iter = iter
         self.device = device
         self.image_size = image_size
         self.image_pad = image_pad
+        self.robot = robot
 
         if image_pad is not None:
             self.aug_trans = nn.Sequential(
@@ -188,11 +190,18 @@ class ReplayBuffer(object):
         (obs, action, reward, next_obs) = next(self.iter)
         reward = torch.unsqueeze(reward, dim=-1)
         not_done = torch.ones_like(reward)  # episode ends because of maximal step limits 
-        
-        obs = obs.float().to(self.device)
+        if self.robot:
+            obs['image'] = obs['image'].float().to(self.device)
+            obs['robot'] = obs['robot'].float().to(self.device)
+        else:
+            obs = obs.float().to(self.device)
         action = action.to(self.device)
         reward = reward.to(self.device)
-        next_obs = next_obs.float().to(self.device)
+        if self.robot:
+            next_obs['image'] = next_obs['image'].float().to(self.device)
+            next_obs['robot'] = next_obs['robot'].float().to(self.device)
+        else:
+            next_obs = next_obs.float().to(self.device)
         not_done = not_done.to(self.device)
         
         return obs, action, reward, next_obs, not_done
@@ -331,7 +340,7 @@ def _worker_init_fn(worker_id):
 
 
 def make_replay_buffer(replay_dir, max_size, batch_size, num_workers,
-                       save_snapshot, nstep, discount, obs_shape, device, image_size, image_pad):
+                       save_snapshot, nstep, discount, obs_shape, device, image_size, image_pad, robot):
     max_size_per_worker = max_size // max(1, num_workers)
 
     iterable = ReplayBufferDataset(replay_dir,
@@ -347,6 +356,6 @@ def make_replay_buffer(replay_dir, max_size, batch_size, num_workers,
                                          num_workers=num_workers,
                                          pin_memory=True,
                                          worker_init_fn=_worker_init_fn)
-    buffer = ReplayBuffer(iter(loader), obs_shape, device, image_size, image_pad)
+    buffer = ReplayBuffer(iter(loader), obs_shape, device, image_size, image_pad, robot)
     
     return buffer

@@ -23,6 +23,7 @@ class SACAE(SAC):
         
         self.autoencoder_update_freq = args.sacae_update_freq
         self.encoder_tau = args.sacae_encoder_tau
+        self.robot = args.robot_shape > 0
 
         self.autoencoder_optimizer = torch.optim.Adam(
             self.model.autoencoder.parameters(), lr=args.sacae_autoencoder_lr, betas=(args.sacae_autoencoder_beta, 0.999))
@@ -37,6 +38,7 @@ class SACAE(SAC):
 
 
     def update_autoencoder(self, x, L, step):
+        x = x['image'] if self.robot else x
         recon_x = self.model.autoencoder.recon(x)
         target = preprocess_obs(x)
         recon_loss = F.mse_loss(recon_x, target)
