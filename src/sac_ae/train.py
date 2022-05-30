@@ -1,3 +1,4 @@
+from collections import deque
 import numpy as np
 import torch
 import wandb
@@ -20,24 +21,31 @@ torch.backends.cudnn.benchmark = True
 
 def evaluate(env, agent, video, num_episodes, L, step, tag=None):
     episode_rewards = []
+    num_successes = 0
     for i in range(num_episodes):
         obs = env.reset()
         video.init(enabled=(i==0))
         done = False
         episode_reward = 0
+        info = {}
         while not done:
             with eval_mode(agent):
                 action = agent.select_action(obs)
-            obs, reward, done, _ = env.step(action)
+            obs, reward, done, info = env.step(action)
             video.record(env)
             episode_reward += reward
 
-        if L is not None:
-            video.save(f'{step}.mp4')
-            L.log(f'eval/episode_reward', episode_reward, step)
         episode_rewards.append(episode_reward)
+        if info.get('is_success'):
+            num_successes += 1
     
-    return np.mean(episode_rewards)
+    mean_reward = np.mean(episode_rewards)
+    if L is not None:
+        video.save(f'{step}.mp4')
+        L.log(f'eval/success_rate', num_successes / num_episodes, step)
+        L.log(f'eval/episode_reward', mean_reward, step)
+    
+    return mean_reward
 
 
 def main():
@@ -87,6 +95,8 @@ def main():
 
     replay_storage = ReplayBufferStorage(Path(args.work_dir) / 'buffer', robot=args.robot_shape > 0)
     replay_buffer = None
+
+    ep_success_buffer = deque(maxlen=100)
     
     model = make_model(agent_obs_shape, action_shape, args, device)
 
@@ -102,7 +112,7 @@ def main():
     # run
     #L = Logger(args.work_dir, use_tb=args.save_tb, config=args.agent)
 
-    episode, episode_reward, done = 0, 0, True
+    episode, episode_reward, done, info = 0, 0, True, {}
     start_time = time.time()
 
     for step in range(args.num_train_steps+1):
@@ -118,9 +128,11 @@ def main():
         if done:
             if step > 0:
                 replay_storage.add(obs, None, None, True)  # add the last observation for each episode
+                ep_success_buffer.append(info.get('is_success'))
                 if step % args.log_interval == 0:
                     L.log('train/episode_reward', episode_reward, step)
                     L.log('train/duration', time.time() - start_time, step)
+                    L.log('train/success_rate', sum(1 for _ in filter(lambda x: x, iter(ep_success_buffer))) / len(ep_success_buffer), step)
                     L.dump(step)
                 start_time = time.time()
 
@@ -160,7 +172,7 @@ def main():
             for _ in range(num_updates):
                 agent.update(replay_buffer, L, step)
 
-        next_obs, reward, done, _ = env.step(action)
+        next_obs, reward, done, info = env.step(action)
 
         # allow infinit bootstrap
         done_bool = 0 if episode_step + 1 == env._max_episode_steps else float(done)
