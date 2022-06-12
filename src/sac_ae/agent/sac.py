@@ -169,3 +169,6 @@ class SAC(object):
 
     def save_model(self, dir, step):
         torch.save(self.model.state_dict(), os.path.join(dir, f'{step}.pt'))
+
+    def load_model(self, file):
+        self.model.load_state_dict(torch.load(file))
