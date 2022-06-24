@@ -147,11 +147,14 @@ class Actor(nn.Module):
         self.apply(weight_init)
 
     def forward(self, x, compute_pi=True, compute_log_pi=True, detach=False):
-        image = x['image'] if self.robot else x
-        robot_obs = x['robot'] if self.robot else torch.empty()
+        if self.robot:
+            image = x['image']
+            robot_obs = x['robot']
 
-        x = self.encoder(image, detach=detach)
-        x = torch.cat([x, robot_obs], dim=1)
+            image = self.encoder(image, detach=detach)
+            x = torch.cat([image, robot_obs], dim=1)
+        else:
+            x = self.encoder(x, detach=detach)
         mu, log_std = self.mlp(x).chunk(2, dim=-1)
         log_std = torch.tanh(log_std)
         log_std = self.log_std_min + 0.5 * (self.log_std_max - self.log_std_min) * (log_std + 1)
@@ -183,8 +186,10 @@ class QFunction(nn.Module):
     def forward(self, obs, action, robot):
         assert obs.size(0) == action.size(0)
         assert obs.size(0) == robot.size(0)
-
-        obs_action = torch.cat([obs, robot, action], dim=1)
+        if robot != None:
+            obs_action = torch.cat([obs, robot, action], dim=1)
+        else:
+            obs_action = torch.cat([obs, action], dim=1)
         return self.mlp(obs_action)
 
 
@@ -198,7 +203,7 @@ class Critic(nn.Module):
         self.apply(weight_init)
 
     def forward(self, x, action, detach=False):
-        robot = x['robot'] if self.robot else torch.empty()
+        robot = x['robot'] if self.robot else None
         x = self.encoder(x['image'] if self.robot else x, detach=detach)
         return self.Q1(x, action, robot), self.Q2(x, action, robot)
 
