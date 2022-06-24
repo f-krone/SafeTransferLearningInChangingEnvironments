@@ -22,9 +22,9 @@ torch.backends.cudnn.benchmark = True
 def evaluate(env, agent, video, num_episodes, L, step, tag=None):
     episode_rewards = []
     num_successes = 0
-    for i in range(num_episodes):
+    video.init(enabled=True)
+    for _ in range(num_episodes):
         obs = env.reset()
-        video.init(enabled=(i==0))
         done = False
         episode_reward = 0
         info = {}
