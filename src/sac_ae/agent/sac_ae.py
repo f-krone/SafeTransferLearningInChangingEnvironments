@@ -16,6 +16,13 @@ def preprocess_obs(obs, bits=5):
     obs = obs - 0.5
     return obs
 
+def weight_red_channel_mean(x, weight):
+    weights = torch.zeros_like(x)
+    weights[:, 0::3] = weight
+    weights[:, 1::3] = (3 - weight) / 2
+    weights[:, 2::3] = (3 - weight) / 2
+    return (weights * x).mean()
+
 
 class SACAE(SAC):
     def __init__(self, model, device, action_shape, args):
@@ -24,6 +31,7 @@ class SACAE(SAC):
         self.autoencoder_update_freq = args.sacae_update_freq
         self.encoder_tau = args.sacae_encoder_tau
         self.robot = args.robot_shape > 0
+        self.red_weight = args.sacae_red_weight
 
         self.autoencoder_optimizer = torch.optim.Adam(
             self.model.autoencoder.parameters(), lr=args.sacae_autoencoder_lr, betas=(args.sacae_autoencoder_beta, 0.999))
@@ -41,7 +49,12 @@ class SACAE(SAC):
         x = x['image'] if self.robot else x
         recon_x = self.model.autoencoder.recon(x)
         target = preprocess_obs(x)
-        recon_loss = F.mse_loss(recon_x, target)
+
+        if self.red_weight == None:
+            recon_loss = F.mse_loss(recon_x, target)
+        else:
+            recon_loss = F.mse_loss(recon_x, target, reduction="none")
+            recon_loss = weight_red_channel_mean(recon_loss, self.red_weight)
 
         self.autoencoder_optimizer.zero_grad()
         recon_loss.backward()

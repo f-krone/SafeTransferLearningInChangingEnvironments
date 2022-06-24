@@ -63,6 +63,7 @@ def parse_args():
     parser.add_argument('--sacae_autoencoder_lr', default=1e-5, type=float)
     parser.add_argument('--sacae_autoencoder_beta', default=0.9, type=float)
     parser.add_argument('--sacae_encoder_tau', default=0.05, type=float)
+    parser.add_argument('--sacae_red_weight', default=None, type=float)
 
     # drq & atc
     parser.add_argument('--image_pad', default=4, type=int)
@@ -104,6 +105,8 @@ def parse_args():
     
     # verification
     assert (args.agent in ['curl', 'sacae', 'sac', 'rad', 'drq', 'atc'])
+    assert args.sacae_red_weight == None or args.sacae_red_weight <= 3
+    assert args.sacae_red_weight == None or args.sacae_red_weight >= 0
 
     if args.agent in ['curl', 'rad']:
         args.env_image_size = 100
