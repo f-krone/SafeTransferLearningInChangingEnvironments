@@ -1,3 +1,4 @@
+from typing import List
 import numpy as np
 import torch
 import argparse
@@ -12,7 +13,7 @@ import dmc2gym
 import copy
 
 
-def parse_args():
+def parse_args(argumentString = None):
     parser = argparse.ArgumentParser()
     ##### Common #####
     # environment
@@ -25,7 +26,7 @@ def parse_args():
     parser.add_argument('--init_steps', default=1000, type=int)
     parser.add_argument('--num_train_steps', default=2000000, type=int)
     parser.add_argument('--batch_size', default=128, type=int)
-    parser.add_argument('--hidden_dim', default=1024, type=int)
+    parser.add_argument('--hidden_dim', default='1024,512,256', type=str)
     # eval
     parser.add_argument('--eval_freq', default=10000, type=int)
     parser.add_argument('--num_eval_episodes', default=10, type=int)
@@ -90,6 +91,7 @@ def parse_args():
     parser.add_argument('--log_interval', default=25, type=int)
     parser.add_argument('--tag', default='', type=str)
     parser.add_argument('--robot_shape', default=0, type=int)
+    parser.add_argument('--exp_name', default=None, type=str)
 
     #preferenece reward
     parser.add_argument('--pr_files', default=None, type=str)
@@ -101,7 +103,10 @@ def parse_args():
     parser.add_argument('--wandb_project', default=None, type=str)
     parser.add_argument('--wandb_name', default=None, type=str)
 
-    args = parser.parse_args()
+    if argumentString == None:
+        args = parser.parse_args()
+    else:
+        args = parser.parse_args(argumentString)
     
     # verification
     assert (args.agent in ['curl', 'sacae', 'sac', 'rad', 'drq', 'atc'])

@@ -47,15 +47,18 @@ def evaluate(env, agent, video, num_episodes, L, step, tag=None):
     
     return mean_reward
 
+def train(args):
+    args.hidden_dim = list(map(lambda x: int(x), iter(args.hidden_dim.split(','))))
 
-def main():
     # prepare workspace
-    args = parse_args()
     set_seed_everywhere(args.seed)
     
-    ts = time.strftime("%m-%d-%H-%M", time.gmtime())
-    exp_name = args.env_name + '-' + ts + '-im' + str(args.env_image_size) +'-b'  \
-    + str(args.batch_size) + '-s' + str(args.seed)  + '-' + args.agent
+    if args.exp_name == None:
+        ts = time.strftime("%m-%d-%H-%M", time.gmtime())
+        exp_name = args.env_name + '-' + ts + '-im' + str(args.env_image_size) +'-b'  \
+        + str(args.batch_size) + '-s' + str(args.seed)  + '-' + args.agent
+    else:
+        exp_name = args.exp_name
     if args.tag:
         exp_name = exp_name + '-' + args.tag
     args.work_dir = args.work_dir + '/'  + exp_name
@@ -99,7 +102,6 @@ def main():
     ep_success_buffer = deque(maxlen=100)
     
     model = make_model(agent_obs_shape, action_shape, args, device)
-
 
     # prepare agent
     agent = make_agent(
@@ -185,6 +187,9 @@ def main():
     if run != None:
         run.finish()
 
+def main():
+    args = parse_args()
+    train(args)
     
 if __name__ == '__main__':
     main()

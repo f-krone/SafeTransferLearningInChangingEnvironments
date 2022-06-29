@@ -1,0 +1,33 @@
+program: ae_sweep.py
+project: sweep-ae-reach-ensemble-preference
+method: bayes
+metric:
+  name: train/preference_reward/env_reward_moving_avg
+  goal: maximize
+parameters:
+  critic_lr:
+    min: 0.000001
+    max: 0.001
+  actor_lr:
+    min: 0.000001
+    max: 0.001
+  sacae_autoencoder_lr:
+    min: 0.000001
+    max: 0.001
+  sacae_update_freq:
+    min: 1
+    max: 10
+  sacae_red_weight:
+    min: 1.0
+    max: 3.0
+  hidden_dim:
+    values: [256, 512, 1024]
+  encoder_feature_dim:
+    min: 32
+    max: 50
+  discount:
+    min: 0.8
+    max: 0.99
+  pr_alpha:
+    min: 0.0
+    max: 1.0

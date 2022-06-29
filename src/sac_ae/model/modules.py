@@ -27,7 +27,7 @@ class SharedCNN(nn.Module):
         self.layers = [nn.Conv2d(obs_shape[0], num_filters, 3, stride=2)]
         for _ in range(1, num_layers):
             self.layers.append(nn.ReLU())
-            self.layers.append(nn.Conv2d(num_filters, num_filters, 3, stride=1))
+            self.layers.append(nn.Conv2d(num_filters, num_filters, 3, stride=2))
         self.layers.append(Flatten())
         self.layers = nn.Sequential(*self.layers)
 
@@ -138,10 +138,13 @@ class Actor(nn.Module):
         super().__init__()
         self.encoder = encoder
         self.robot = robot_shape > 0
-        self.mlp = nn.Sequential(
-            nn.Linear(self.encoder.out_dim + robot_shape, hidden_dim), nn.ReLU(),
-            nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
-            nn.Linear(hidden_dim, 2 * action_dim))
+        self.mlp = []
+        out_dim = self.encoder.out_dim + robot_shape
+        for dim in hidden_dim:
+            self.mlp.append(nn.Linear(out_dim, dim))
+            out_dim = dim
+        self.mlp.append(nn.Linear(out_dim, 2 * action_dim))
+        self.mlp = nn.Sequential(*self.mlp)
         self.log_std_min = log_std_min
         self.log_std_max = log_std_max
         self.apply(weight_init)
@@ -178,10 +181,13 @@ class Actor(nn.Module):
 class QFunction(nn.Module):
     def __init__(self, obs_dim, action_dim, hidden_dim):
         super().__init__()
-        self.mlp = nn.Sequential(
-            nn.Linear(obs_dim + action_dim, hidden_dim), nn.ReLU(),
-            nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
-            nn.Linear(hidden_dim, 1))
+        self.mlp = []
+        out_dim = obs_dim + action_dim
+        for dim in hidden_dim:
+            self.mlp.append(nn.Linear(out_dim, dim))
+            out_dim = dim
+        self.mlp.append(nn.Linear(out_dim, 1))
+        self.mlp = nn.Sequential(*self.mlp)
 
     def forward(self, obs, action, robot):
         assert obs.size(0) == action.size(0)
