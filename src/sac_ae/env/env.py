@@ -98,7 +98,7 @@ class CropImage(gym.ObservationWrapper):
                 'robot': observation['robot']
             }
         else:
-            return observation
+            return obs
 
 
 class FrameStack(gym.Wrapper):

@@ -110,10 +110,10 @@ def train(args):
         action_shape=action_shape,
         args=args
     )
+
+    wandb.log({"model": str(model)})
     
     # run
-    #L = Logger(args.work_dir, use_tb=args.save_tb, config=args.agent)
-
     episode, episode_reward, done, info = 0, 0, True, {}
     start_time = time.time()
 

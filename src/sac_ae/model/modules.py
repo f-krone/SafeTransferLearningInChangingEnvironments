@@ -31,6 +31,18 @@ class SharedCNN(nn.Module):
         self.layers.append(Flatten())
         self.layers = nn.Sequential(*self.layers)
 
+        # self.layers = nn.Sequential(
+        #     nn.Conv2d(obs_shape[0], 16, 3, stride=2),
+        #     nn.ReLU(),
+        #     nn.Conv2d(16, 32, 3, stride=2),
+        #     nn.ReLU(),
+        #     nn.Conv2d(32, 64, 3, stride=2),
+        #     nn.ReLU(),
+        #     nn.Conv2d(64, 128, 3, stride=2),
+        #     nn.ReLU(),
+        #     nn.Flatten()
+        # )
+
         self.out_dim = get_out_shape(obs_shape, self.layers)[-1]
         self.apply(weight_init)
 
@@ -142,6 +154,7 @@ class Actor(nn.Module):
         out_dim = self.encoder.out_dim + robot_shape
         for dim in hidden_dim:
             self.mlp.append(nn.Linear(out_dim, dim))
+            self.mlp.append(nn.ReLU())
             out_dim = dim
         self.mlp.append(nn.Linear(out_dim, 2 * action_dim))
         self.mlp = nn.Sequential(*self.mlp)
@@ -185,14 +198,15 @@ class QFunction(nn.Module):
         out_dim = obs_dim + action_dim
         for dim in hidden_dim:
             self.mlp.append(nn.Linear(out_dim, dim))
+            self.mlp.append(nn.ReLU())
             out_dim = dim
         self.mlp.append(nn.Linear(out_dim, 1))
         self.mlp = nn.Sequential(*self.mlp)
 
     def forward(self, obs, action, robot):
         assert obs.size(0) == action.size(0)
-        assert obs.size(0) == robot.size(0)
         if robot != None:
+            assert obs.size(0) == robot.size(0)
             obs_action = torch.cat([obs, robot, action], dim=1)
         else:
             obs_action = torch.cat([obs, action], dim=1)
