@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.distributions.normal import Normal
 import numpy as np
 from .misc import *
 
@@ -172,22 +173,30 @@ class Actor(nn.Module):
         else:
             x = self.encoder(x, detach=detach)
         mu, log_std = self.mlp(x).chunk(2, dim=-1)
-        log_std = torch.tanh(log_std)
-        log_std = self.log_std_min + 0.5 * (self.log_std_max - self.log_std_min) * (log_std + 1)
+        # taken from openai/spinningup
+        log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max)
+        std = torch.exp(log_std)
 
-        if compute_pi:
-            std = log_std.exp()
-            noise = torch.randn_like(mu)
-            pi = mu + noise * std
+        # Pre-squash distribution and sample
+        pi_distribution = Normal(mu, std)
+        if compute_pi or compute_log_pi:
+            pi = pi_distribution.rsample()
         else:
             pi = None
 
         if compute_log_pi:
-            log_pi = gaussian_logprob(noise, log_std)
+            # Compute logprob from Gaussian, and then apply correction for Tanh squashing.
+            # NOTE: The correction formula is a little bit magic. To get an understanding 
+            # of where it comes from, check out the original SAC paper (arXiv 1801.01290) 
+            # and look in appendix C. This is a more numerically-stable equivalent to Eq 21.
+            # Try deriving it yourself as a (very difficult) exercise. :)
+            log_pi = pi_distribution.log_prob(pi).sum(axis=-1, keepdim=True)
+            log_pi -= (2*(np.log(2) - pi - F.softplus(-2*pi))).sum(axis=1, keepdim=True)
         else:
             log_pi = None
-
-        mu, pi, log_pi = squash(mu, pi, log_pi)
+        if compute_pi:
+            pi = torch.tanh(pi)
+        mu = torch.tanh(mu)
         return mu, pi, log_pi, log_std
     
 

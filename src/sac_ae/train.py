@@ -111,7 +111,8 @@ def train(args):
         args=args
     )
 
-    wandb.log({"model": str(model)})
+    if run != None:
+        wandb.log({"model": str(model)})
     
     # run
     episode, episode_reward, done, info = 0, 0, True, {}
