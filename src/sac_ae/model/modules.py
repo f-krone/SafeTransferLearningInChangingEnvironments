@@ -19,16 +19,17 @@ class Flatten(nn.Module):
 
 
 class SharedCNN(nn.Module):
-    def __init__(self, obs_shape, num_layers=11, num_filters=32):
+    def __init__(self, obs_shape, num_layers=11, num_filters=32, stride=1):
         super().__init__()
         assert len(obs_shape) == 3
         self.num_layers = num_layers
         self.num_filters = num_filters
 
         self.layers = [nn.Conv2d(obs_shape[0], num_filters, 3, stride=2)]
+        self.layers.append(nn.ReLU())
         for _ in range(1, num_layers):
+            self.layers.append(nn.Conv2d(num_filters, num_filters, 3, stride=stride))
             self.layers.append(nn.ReLU())
-            self.layers.append(nn.Conv2d(num_filters, num_filters, 3, stride=2))
         self.layers.append(Flatten())
         self.layers = nn.Sequential(*self.layers)
 
@@ -82,7 +83,7 @@ class RLProjection(nn.Module):
         self.projection = nn.Sequential(
             nn.Linear(in_dim, out_dim),
             nn.LayerNorm(out_dim),
-            nn.Tanh()
+            nn.ReLU()
         )
         self.out_dim = out_dim
         self.apply(weight_init)

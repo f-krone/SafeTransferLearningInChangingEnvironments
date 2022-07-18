@@ -22,7 +22,8 @@ def make_model(agent_obs_shape, action_shape, args, device):
                       num_layers = args.num_layers,
                       num_filters = args.num_filters,
                       device = device,
-                      robot_shape = args.robot_shape)
+                      robot_shape = args.robot_shape,
+                      cnn_stride = args.cnn_stride)
     else:
         model = Model(obs_shape = agent_obs_shape, 
                       action_shape = action_shape, 

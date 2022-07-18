@@ -47,7 +47,7 @@ def evaluate(env, agent, video, num_episodes, L, step, tag=None):
     
     return mean_reward
 
-def train(args):
+def train(args, wandb_run=None):
     args.hidden_dim = list(map(lambda x: int(x), iter(args.hidden_dim.split(','))))
 
     # prepare workspace
@@ -112,6 +112,8 @@ def train(args):
     )
 
     if run != None:
+        wandb.log({"model": str(model)})
+    if wandb_run != None:
         wandb.log({"model": str(model)})
     
     # run

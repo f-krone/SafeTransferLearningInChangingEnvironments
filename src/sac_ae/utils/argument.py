@@ -53,6 +53,7 @@ def parse_args(argumentString = None):
     parser.add_argument('--encoder_feature_dim', default=50, type=int)
     parser.add_argument('--num_layers', default=4, type=int)
     parser.add_argument('--num_filters', default=32, type=int)
+    parser.add_argument('--cnn_stride', default=1, type=int)
 
     # curl
     parser.add_argument('--curl_update_freq', default=1, type=int)

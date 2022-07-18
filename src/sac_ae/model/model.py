@@ -3,12 +3,13 @@ import torch
 import torch.nn as nn
 
 class SAC_Model(nn.Module):
-    def __init__(self, obs_shape, action_shape, hidden_dim, encoder_feature_dim, log_std_min, log_std_max, num_layers, num_filters, device, robot_shape):
+    def __init__(self, obs_shape, action_shape, hidden_dim, encoder_feature_dim, log_std_min, log_std_max, num_layers, num_filters, device, robot_shape, cnn_stride):
         super().__init__()
 
         shared_cnn = m.SharedCNN(obs_shape = obs_shape,
                                  num_layers = num_layers,
-                                 num_filters = num_filters)
+                                 num_filters = num_filters,
+                                 stride=cnn_stride)
 
         actor_encoder = m.Encoder(cnn = shared_cnn,
                                   projection= m.RLProjection(shared_cnn.out_dim, encoder_feature_dim))
@@ -16,7 +17,7 @@ class SAC_Model(nn.Module):
         critic_encoder = m.Encoder(cnn = shared_cnn,
                                    projection = m.RLProjection(shared_cnn.out_dim, encoder_feature_dim))
 
-        critic_encoder_target = m.Encoder(cnn = m.SharedCNN(obs_shape = obs_shape, num_layers = num_layers, num_filters = num_filters),
+        critic_encoder_target = m.Encoder(cnn = m.SharedCNN(obs_shape = obs_shape, num_layers = num_layers, num_filters = num_filters, stride=cnn_stride),
                                           projection = m.RLProjection(shared_cnn.out_dim, encoder_feature_dim))
 
 
@@ -61,9 +62,9 @@ class CURL_Model(SAC_Model):
 
 class SACAE_Model(SAC_Model):
     def __init__(self, obs_shape, action_shape, hidden_dim, encoder_feature_dim, log_std_min, 
-                log_std_max, num_layers, num_filters, device, robot_shape):
+                log_std_max, num_layers, num_filters, device, robot_shape, cnn_stride):
         super().__init__(obs_shape, action_shape, hidden_dim, encoder_feature_dim, log_std_min, 
-                         log_std_max, num_layers, num_filters, device, robot_shape)
+                         log_std_max, num_layers, num_filters, device, robot_shape, cnn_stride)
 
         decoder = m.Decoder(num_channels = obs_shape[0], 
                             feature_dim = encoder_feature_dim, 
