@@ -25,13 +25,13 @@ class SharedCNN(nn.Module):
         self.num_layers = num_layers
         self.num_filters = num_filters
 
-        self.layers = [nn.Conv2d(obs_shape[0], num_filters, 3, stride=2)]
-        self.layers.append(nn.ReLU())
-        for _ in range(1, num_layers):
-            self.layers.append(nn.Conv2d(num_filters, num_filters, 3, stride=stride))
-            self.layers.append(nn.ReLU())
-        self.layers.append(Flatten())
-        self.layers = nn.Sequential(*self.layers)
+        # self.layers = [nn.Conv2d(obs_shape[0], num_filters, 3, stride=2)]
+        # self.layers.append(nn.ReLU())
+        # for _ in range(1, num_layers):
+        #     self.layers.append(nn.Conv2d(num_filters, num_filters, 3, stride=stride))
+        #     self.layers.append(nn.ReLU())
+        # self.layers.append(Flatten())
+        # self.layers = nn.Sequential(*self.layers)
 
         # self.layers = nn.Sequential(
         #     nn.Conv2d(obs_shape[0], 16, 3, stride=2),
@@ -119,6 +119,16 @@ class Encoder(nn.Module):
             x = x.detach()
         return self.projection(x)
 
+class StateEncoder(nn.Module):
+    def __init__(self, projection):
+        super().__init__()
+        self.projection = projection
+
+    def forward(self, x, detach=False):
+        if detach:
+            x = x.detach()
+        return self.projection(x)
+
 class Decoder(nn.Module):
     def __init__(self, num_channels, feature_dim, num_layers = 4, num_filters = 32):
         super().__init__()
@@ -175,11 +185,12 @@ class Actor(nn.Module):
             x = self.encoder(x, detach=detach)
         mu, log_std = self.mlp(x).chunk(2, dim=-1)
         # taken from openai/spinningup
-        log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max)
+        #log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max)
+        log_std = self.log_std_min + 0.5 * (self.log_std_max - self.log_std_min) * (log_std + 1)
         std = torch.exp(log_std)
 
         # Pre-squash distribution and sample
-        pi_distribution = Normal(mu, std)
+        pi_distribution = SquashedNormal(mu, std)
         if compute_pi or compute_log_pi:
             pi = pi_distribution.rsample()
         else:
@@ -192,7 +203,7 @@ class Actor(nn.Module):
             # and look in appendix C. This is a more numerically-stable equivalent to Eq 21.
             # Try deriving it yourself as a (very difficult) exercise. :)
             log_pi = pi_distribution.log_prob(pi).sum(axis=-1, keepdim=True)
-            log_pi -= (2*(np.log(2) - pi - F.softplus(-2*pi))).sum(axis=1, keepdim=True)
+            # log_pi -= (2*(np.log(2) - pi - F.softplus(-2*pi))).sum(axis=1, keepdim=True)
         else:
             log_pi = None
         if compute_pi:

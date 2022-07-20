@@ -50,6 +50,29 @@ class SAC_Model(nn.Module):
         for param, target_param in zip(self.critic.encoder.parameters(), self.critic_target.encoder.parameters()):
             target_param.data.copy_(encoder_tau * param.data + (1 - encoder_tau) * target_param.data)   
     
+class SAC_State_Model(SAC_Model):
+    def __init__(self, obs_shape, action_shape, hidden_dim, encoder_feature_dim, log_std_min, log_std_max, device):
+        super().__init__((9, 84, 84), action_shape, hidden_dim, encoder_feature_dim, log_std_min, 
+                         log_std_max, 1, 32, device, 0, 1)
+        self.actor.encoder.cnn = nn.Identity()
+        self.critic.encoder.cnn = nn.Identity()
+        self.critic_target.encoder.cnn = nn.Identity()
+        actor_encoder = m.Encoder(cnn = nn.Identity(),
+                                  projection= m.RLProjection(obs_shape[0], encoder_feature_dim))
+        
+        critic_encoder = m.Encoder(cnn = nn.Identity(),
+                                   projection = m.RLProjection(obs_shape[0], encoder_feature_dim))
+
+        critic_encoder_target = m.Encoder(cnn = nn.Identity(),
+                                          projection = m.RLProjection(obs_shape[0], encoder_feature_dim))
+
+        self.actor.encoder = actor_encoder
+        self.critic.encoder = critic_encoder
+        self.critic_target.encoder = critic_encoder_target
+        self.actor.to(device)
+        self.critic.to(device)
+        self.critic_target.to(device)
+        self.critic_target.load_state_dict(self.critic.state_dict())
 
 class CURL_Model(SAC_Model):
     def __init__(self, obs_shape, action_shape, hidden_dim, encoder_feature_dim, log_std_min, 

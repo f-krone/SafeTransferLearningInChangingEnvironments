@@ -22,6 +22,7 @@ FORMAT_CONFIG = {
 }
 FORMAT_CONFIG['rad'] = copy.deepcopy(FORMAT_CONFIG['sac'])
 FORMAT_CONFIG['drq'] = copy.deepcopy(FORMAT_CONFIG['sac'])
+FORMAT_CONFIG['sac_state'] = copy.deepcopy(FORMAT_CONFIG['sac'])
 
 FORMAT_CONFIG['curl'] = copy.deepcopy(FORMAT_CONFIG['sac'])
 FORMAT_CONFIG['curl']['train'].append(('curl_loss', 'CU_LOSS', 'float'))

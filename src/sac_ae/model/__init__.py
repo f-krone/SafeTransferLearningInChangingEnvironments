@@ -6,13 +6,14 @@ Model_Config = {
     'sacae': SACAE_Model,
     'rad': SAC_Model,
     'drq': SAC_Model,
-    'atc': ATC_Model
+    'atc': ATC_Model,
+    'sac_state': SAC_State_Model
 }
 
 def make_model(agent_obs_shape, action_shape, args, device):
     Model = Model_Config[args.agent]
      
-    if Model not in [ATC_Model]:
+    if Model not in [ATC_Model, SAC_State_Model]:
         model = Model(obs_shape = agent_obs_shape, 
                       action_shape = action_shape, 
                       hidden_dim = args.hidden_dim,
@@ -24,6 +25,14 @@ def make_model(agent_obs_shape, action_shape, args, device):
                       device = device,
                       robot_shape = args.robot_shape,
                       cnn_stride = args.cnn_stride)
+    elif Model in [SAC_State_Model]:
+        model = Model(obs_shape = agent_obs_shape, 
+                      action_shape = action_shape, 
+                      hidden_dim = args.hidden_dim,
+                      encoder_feature_dim = args.encoder_feature_dim,
+                      log_std_min = args.actor_log_std_min,
+                      log_std_max = args.actor_log_std_max,
+                      device = device)
     else:
         model = Model(obs_shape = agent_obs_shape, 
                       action_shape = action_shape, 

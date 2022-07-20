@@ -11,7 +11,8 @@ Agent_Config = {
     'sac': SAC,
     'rad': RAD,
     'drq': DRQ,
-    'atc': ATC
+    'atc': ATC,
+    'sac_state': SAC
 }
 
 def make_agent(model, device, action_shape, args):

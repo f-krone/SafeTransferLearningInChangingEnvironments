@@ -9,17 +9,7 @@ import wrappers
 from stable_baselines3 import SAC
 from stable_baselines3.common.vec_env import DummyVecEnv
 
-def make_envs(args, is_eval=False, logger=None):
-    """env = dmc2gym.make(
-        domain_name=args.domain_name,
-        task_name=args.task_name,
-        seed=args.seed,
-        visualize_reward=False,
-        from_pixels=True,
-        height=args.env_image_size,
-        width=args.env_image_size,
-        frame_skip=args.action_repeat
-    )"""
+def make_envs(args, is_eval=False, use_state=False, logger=None):
     env = gym.make(args.env_name)
     max_episode_steps = env._max_episode_steps
     env.seed(args.seed)
@@ -34,16 +24,23 @@ def make_envs(args, is_eval=False, logger=None):
             return SAC.load(file_name)
         model_wrapper = wrappers.ModelWrapper(list(map(lambda i: load_model(args.pr_files + str(i)), range(args.pr_size))), obs_keys=['achieved_goal', 'desired_goal', 'observation'])
         env = wrappers.PreferenceReward(env, model_wrapper, max_mse=4, alpha=args.pr_alpha, logger=logger)
-    crop_img = args.env_name.__contains__('Fetch') and not args.env_name.__contains__('Bird')
-    img_size = 2*args.env_image_size if crop_img else args.env_image_size
-    env = PixelObservation(
-        env,
-        height=img_size,
-        width=img_size,
-        robot=args.robot_shape > 0)
-    if crop_img:
-        env = CropImage(env, robot=args.robot_shape > 0)
-    env = FrameStack(env, k=args.frame_stack, max_episode_steps=max_episode_steps, robot=args.robot_shape > 0)
+    if not use_state:
+        crop_img = args.env_name.__contains__('Fetch') and not args.env_name.__contains__('Bird')
+        img_size = 2*args.env_image_size if crop_img else args.env_image_size
+        env = PixelObservation(
+            env,
+            height=img_size,
+            width=img_size,
+            robot=args.robot_shape > 0)
+        if crop_img:
+            env = CropImage(env, robot=args.robot_shape > 0)
+        env = FrameStack(env, k=args.frame_stack, max_episode_steps=max_episode_steps, robot=args.robot_shape > 0)
+    else:
+        if args.env_name.__contains__('Custom'):
+            env = wrappers.RemoveRobot(env)
+        if args.env_name.__contains__('Fetch'):
+            env = wrappers.ConcatDict(env)
+        env._max_episode_steps = max_episode_steps
     return env
 
 class PixelObservation(gym.ObservationWrapper):

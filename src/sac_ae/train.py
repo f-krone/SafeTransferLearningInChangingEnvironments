@@ -54,9 +54,14 @@ def train(args, wandb_run=None):
     set_seed_everywhere(args.seed)
     
     if args.exp_name == None:
-        ts = time.strftime("%m-%d-%H-%M", time.gmtime())
-        exp_name = args.env_name + '-' + ts + '-im' + str(args.env_image_size) +'-b'  \
-        + str(args.batch_size) + '-s' + str(args.seed)  + '-' + args.agent
+        if args.agent == 'sac_state':
+            ts = time.strftime("%m-%d-%H-%M", time.gmtime())
+            exp_name = args.env_name + '-' + ts + 'state-b'  \
+            + str(args.batch_size) + '-s' + str(args.seed)  + '-' + args.agent
+        else:
+            ts = time.strftime("%m-%d-%H-%M", time.gmtime())
+            exp_name = args.env_name + '-' + ts + '-im' + str(args.env_image_size) +'-b'  \
+            + str(args.batch_size) + '-s' + str(args.seed)  + '-' + args.agent
     else:
         exp_name = args.exp_name
     if args.tag:
@@ -87,13 +92,18 @@ def train(args, wandb_run=None):
     L = Logger(args.work_dir, use_tb=args.save_tb, config=args.agent)
 
     # prepare env
-    env = make_envs(args, False, logger=L)
-    eval_env = make_envs(args, True)
+    env = make_envs(args, False, use_state=args.agent == 'sac_state', logger=L)
+    eval_env = make_envs(args, True, use_state=args.agent == 'sac_state')
 
     # prepare memory
     action_shape = env.action_space.shape
-    agent_obs_shape = (3*args.frame_stack, args.agent_image_size, args.agent_image_size)
-    env_obs_shape = (3*args.frame_stack, args.env_image_size, args.env_image_size)
+    if args.agent == 'sac_state':
+        agent_obs_shape = env.observation_space.shape
+        env_obs_shape = env.observation_space.shape
+        args.agent_image_size = agent_obs_shape[0]
+    else:
+        agent_obs_shape = (3*args.frame_stack, args.agent_image_size, args.agent_image_size)
+        env_obs_shape = (3*args.frame_stack, args.env_image_size, args.env_image_size)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     replay_storage = ReplayBufferStorage(Path(args.work_dir) / 'buffer', robot=args.robot_shape > 0)

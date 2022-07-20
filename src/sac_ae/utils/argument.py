@@ -110,7 +110,7 @@ def parse_args(argumentString = None):
         args = parser.parse_args(argumentString)
     
     # verification
-    assert (args.agent in ['curl', 'sacae', 'sac', 'rad', 'drq', 'atc'])
+    assert (args.agent in ['curl', 'sacae', 'sac', 'rad', 'drq', 'atc', 'sac_state'])
     assert args.sacae_red_weight == None or args.sacae_red_weight <= 3
     assert args.sacae_red_weight == None or args.sacae_red_weight >= 0
 

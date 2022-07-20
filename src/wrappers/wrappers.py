@@ -128,6 +128,16 @@ class RemoveRobot(ObservationWrapper):
         }
         return obs
 
+class ConcatDict(ObservationWrapper):
+    def __init__(self, env):
+        super(ConcatDict, self).__init__(env)
+        low = np.concatenate([env.observation_space['observation'].low, env.observation_space['achieved_goal'].low, env.observation_space['desired_goal'].low])
+        high = np.concatenate([env.observation_space['observation'].high, env.observation_space['achieved_goal'].high, env.observation_space['desired_goal'].high])
+        self.observation_space = spaces.Box(low=low, high=high)
+
+    def observation(self, observation):
+        return np.concatenate([observation['observation'], observation['achieved_goal'], observation['desired_goal']])
+
 class CostWrapper(Wrapper):
     def __init__(self, env: Env, cost_factor = 1, tensorboard_log: str=None) -> None:
         super().__init__(env)
