@@ -6,21 +6,30 @@ from collections import deque
 
 
 class FrameStack(Wrapper):
-    def __init__(self, env, stack_size=4, use_3d_conv=True, add_robot=False):
+    def __init__(self, env, stack_size=4, stack_type='color_channels_first', add_robot=False):
         super(FrameStack, self).__init__(env)
+        if stack_type not in ['color_channels_first', 'stack_size_first', 'concat_images']:
+            print('Invalid stack type selected, reverting to default')
+            stack_type = 'color_channels_first'
+        self.stack_type = stack_type
         self.stack_size = stack_size
-        self.use_3d_conv = use_3d_conv
         self.add_robot = add_robot
-        self.key = 'frame_stack_3d' if use_3d_conv else 'frame_stack_2d'
 
         self.frames = deque(maxlen=stack_size)
-
-        low = np.repeat(self.observation_space['image'].low[np.newaxis, ...], stack_size, axis=0)
-        high = np.repeat(self.observation_space['image'].high[np.newaxis, ...], stack_size, axis=0)
-
-        if use_3d_conv:
+        if self.stack_type == 'stack_size_first':
+            self.key = 'frame_stack_2d'
+            low = np.repeat(self.observation_space['image'].low[np.newaxis, :], stack_size, axis=0)
+            high = np.repeat(self.observation_space['image'].high[np.newaxis, :], stack_size, axis=0)
+        elif self.stack_type == 'color_channels_first':
+            self.key = 'frame_stack_3d'
+            low = np.repeat(self.observation_space['image'].low[np.newaxis, :], stack_size, axis=0)
+            high = np.repeat(self.observation_space['image'].high[np.newaxis, :], stack_size, axis=0)
             low = np.moveaxis(low, -1, 0)
             high = np.moveaxis(high, -1, 0)
+        elif self.stack_type == 'concat_images':
+            self.key='image'
+            low = np.repeat(self.observation_space['image'].low, stack_size, axis=-1)
+            high = np.repeat(self.observation_space['image'].high, stack_size, axis=-1)
 
         pixels_space = spaces.Box(low=low, high=high, dtype=self.observation_space['image'].dtype)
 
@@ -36,9 +45,13 @@ class FrameStack(Wrapper):
 
     def observation(self, observation):
         assert len(self.frames) == self.stack_size, (len(self.frames), self.stack_size)
-        obs = np.asarray(self.frames)
-        if self.use_3d_conv :
+        if self.stack_type == 'stack_size_first':
+            obs = np.asarray(self.frames)
+        if self.stack_type == 'color_channels_first':
+            obs = np.asarray(self.frames)
             obs = np.moveaxis(obs, -1, 0)
+        elif self.stack_type == 'concat_images':
+            obs = np.concatenate(self.frames, axis=-1)
         if self.add_robot:
             return dict({self.key: obs, 'robot': observation['robot']})
         return dict({self.key: obs})
