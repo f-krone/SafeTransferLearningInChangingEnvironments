@@ -5,11 +5,13 @@ import numpy as np
 import wandb
 
 class ModelWrapper:
-    def __init__(self, models: List[BaseAlgorithm], obs_keys:List[str], use_mean=False, remove_barrier=False) -> None:
+    def __init__(self, models: List[BaseAlgorithm], obs_keys:List[str], use_mean=False, remove_barrier=False, teacher_per_episode=False) -> None:
         self.models = models
         self.use_mean = use_mean
         self.obs_keys = obs_keys
         self.remove_barrier = remove_barrier
+        self.teacher_per_episode = teacher_per_episode
+        self.teacher = 0
 
     """def __init__(self, sac_model_paths: List[str], obs_keys:List[str], use_mean=False) -> None:
         self.models = list(map(lambda path: SAC.load(path), iter(sac_model_paths)))
@@ -23,10 +25,13 @@ class ModelWrapper:
         if self.use_mean:
             action = actions.mean(axis=0)
         else:
-            selected_action = np.random.randint(0, len(self.models))
+            selected_action = self.teacher if self.teacher_per_episode else np.random.randint(0, len(self.models))
             action = actions[selected_action]
         confidence = np.exp(-actions.std(axis=0).mean())
         return action, confidence
+
+    def select_teacher(self):
+        self.teacher = np.random.randint(0, len(self.models))
         
     def _transform_obs(self, observation):
         obs = {k:observation[k] for k in self.obs_keys if k in observation}

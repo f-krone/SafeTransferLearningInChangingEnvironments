@@ -39,7 +39,14 @@ class PreferenceReward(Wrapper):
             return self.alpha(self.steps)
         if type(self.alpha) == str and self.alpha == 'auto':
             assert self.env_reward_mean <= 0, "Env reward is always below tero, the mean should be as well"
-            return np.min([1.0, 1.0-1.05**(self.env_reward_mean)])
+            #return np.min([1.0, 1.0-1.05**(self.env_reward_mean)])
+            reward_min = -15
+            reward_max = 0
+            alpha = 1.0 - (reward_min - self.env_reward_mean) / (reward_min - reward_max)
+            alpha = np.max([np.min([1.0, alpha]), 0.0])
+            assert alpha >= 0.0, "Alpha should be at least 0"
+            assert alpha <= 1.0, "Alpha should be at most 1"
+            return alpha
         return self.alpha
 
     def step(self, action):
@@ -56,14 +63,14 @@ class PreferenceReward(Wrapper):
         if self.env_reward_mean == 0:
             self.env_reward_mean = np.sum(self.external_rewards)
         else:
-            self.env_reward_mean = 0.05 * np.sum(self.external_rewards) + 0.95 * self.env_reward_mean
+            self.env_reward_mean = 0.01 * np.sum(self.external_rewards) + 0.99 * self.env_reward_mean
         if self.writer != None and len(self.internal_rewards) > 0:
             self.writer.add_scalar('preference_reward/ep_internal_reward_mean', np.mean(self.internal_rewards))
             self.writer.add_scalar('preference_reward/ep_external_reward_mean', np.mean(self.external_rewards))
             self.writer.add_scalar('preference_reward/ep_confidence_mean', np.mean(self.confidences))
             self.writer.add_scalar('preference_reward/ep_action_error_mean', np.mean(self.actions_errors))
             self.writer.add_scalar('preference_reward/ep_calc_reward_mean', np.mean(self.calc_rewards))
-            self.writer.add_scalar('preference_reward/alpha', np.mean(self._get_alpha()))
+            self.writer.add_scalar('preference_reward/alpha', self._get_alpha())
             self.writer.add_scalar('preference_reward/env_reward_moving_avg', np.mean(self.env_reward_mean))
         if self.logger != None and len(self.internal_rewards) > 0:
             self.logger.log('train/preference_reward/ep_internal_reward_mean', np.mean(self.internal_rewards), self.steps)
@@ -71,11 +78,13 @@ class PreferenceReward(Wrapper):
             self.logger.log('train/preference_reward/ep_confidence_mean', np.mean(self.confidences), self.steps)
             self.logger.log('train/preference_reward/ep_action_error_mean', np.mean(self.actions_errors), self.steps)
             self.logger.log('train/preference_reward/ep_calc_reward_mean', np.mean(self.calc_rewards), self.steps)
-            self.logger.log('train/preference_reward/alpha', np.mean(self._get_alpha()), self.steps)
+            self.logger.log('train/preference_reward/alpha', self._get_alpha(), self.steps)
             self.logger.log('train/preference_reward/env_reward_moving_avg', np.mean(self.env_reward_mean), self.steps)
         self.internal_rewards = []
         self.external_rewards = []
         self.confidences = []
         self.actions_errors = []
         observation = self.env.reset(**kwargs)
+        if self.preferenceModel.teacher_per_episode:
+            self.preferenceModel.select_teacher()
         return observation
