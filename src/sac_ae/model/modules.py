@@ -199,12 +199,13 @@ class Actor(nn.Module):
             x = self.encoder(x, detach=detach)
         mu, log_std = self.mlp(x).chunk(2, dim=-1)
         # taken from openai/spinningup
-        log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max)
-        #log_std = self.log_std_min + 0.5 * (self.log_std_max - self.log_std_min) * (log_std + 1)
+        # log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max)
+        log_std = self.log_std_min + 0.5 * (self.log_std_max - self.log_std_min) * (log_std + 1)
         std = torch.exp(log_std)
 
         # Pre-squash distribution and sample
-        pi_distribution = Normal(mu, std)#SquashedNormal(mu, std)
+        # pi_distribution = Normal(mu, std)
+        pi_distribution = SquashedNormal(mu, std)
         if compute_pi or compute_log_pi:
             pi = pi_distribution.rsample()
         else:
@@ -217,7 +218,7 @@ class Actor(nn.Module):
             # and look in appendix C. This is a more numerically-stable equivalent to Eq 21.
             # Try deriving it yourself as a (very difficult) exercise. :)
             log_pi = pi_distribution.log_prob(pi).sum(axis=-1, keepdim=True)
-            log_pi -= (2*(np.log(2) - pi - F.softplus(-2*pi))).sum(axis=1, keepdim=True)
+            # log_pi -= (2*(np.log(2) - pi - F.softplus(-2*pi))).sum(axis=1, keepdim=True)
         else:
             log_pi = None
         if compute_pi:
