@@ -6,7 +6,7 @@ from collections import deque
 
 
 class FrameStack(Wrapper):
-    def __init__(self, env, stack_size=4, stack_type='color_channels_first', add_robot=False):
+    def __init__(self, env, stack_size=4, stack_type='color_channels_first', add_robot=False, image_key:str=None):
         super(FrameStack, self).__init__(env)
         if stack_type not in ['color_channels_first', 'stack_size_first', 'concat_images']:
             print('Invalid stack type selected, reverting to default')
@@ -30,6 +30,9 @@ class FrameStack(Wrapper):
             self.key='image'
             low = np.repeat(self.observation_space['image'].low, stack_size, axis=-1)
             high = np.repeat(self.observation_space['image'].high, stack_size, axis=-1)
+
+        if image_key != None:
+            self.key = image_key
 
         pixels_space = spaces.Box(low=low, high=high, dtype=self.observation_space['image'].dtype)
 

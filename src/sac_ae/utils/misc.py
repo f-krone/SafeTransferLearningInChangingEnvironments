@@ -56,11 +56,10 @@ def preprocess_obs(obs, bits=5):
 
 
 class VideoRecorder(object):
-    def __init__(self, dir_name, height=256, width=256, camera_id=0, fps=30):
+    def __init__(self, dir_name, height=256, width=256, fps=30):
         self.dir_name = dir_name
         self.height = height
         self.width = width
-        self.camera_id = camera_id
         self.fps = fps
         self.frames = []
 
@@ -74,8 +73,7 @@ class VideoRecorder(object):
                 frame = env.render(
                     mode='rgb_array',
                     height=self.height,
-                    width=self.width,
-                    camera_id=self.camera_id
+                    width=self.width
                 )
             except:
                 frame = env.render(

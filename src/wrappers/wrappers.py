@@ -26,20 +26,33 @@ class ImageAndRobot(ObservationWrapper):
 
 class PixelObservation(ObservationWrapper):
 
-    def __init__(self, env, width=128, height=128):
+    def __init__(self, env, width=128, height=128, add_robot=False):
         super(ObservationWrapper, self).__init__(env)
         self.width = width
         self.height = height
+        self.add_robot = add_robot
         low, high = (0, 255)
         pixels_space = spaces.Box(shape=(height, width, 3), low=low, high=high, dtype=np.uint8)
-        self.observation_space = spaces.Dict(
-            image=pixels_space,
-        )
+        if self.add_robot:
+            self.observation_space = spaces.Dict(
+                image=pixels_space,
+                robot=env.observation_space['robot']
+            )
+        else:
+            self.observation_space = spaces.Dict(
+                image=pixels_space,
+            )
 
     def observation(self, observation):
-        obs = {
-            'image': self.env.render(mode='rgb_array', width=self.width, height=self.height)
-        }
+        if self.add_robot:
+            obs = {
+                'image': self.env.render(mode='rgb_array', width=self.width, height=self.height),
+                'robot': observation['robot']
+            }
+        else:
+            obs = {
+                'image': self.env.render(mode='rgb_array', width=self.width, height=self.height)
+            }
         return obs
 
 class RemoveGoal(ObservationWrapper):
@@ -137,6 +150,16 @@ class ConcatDict(ObservationWrapper):
 
     def observation(self, observation):
         return np.concatenate([observation['observation'], observation['achieved_goal'], observation['desired_goal']])
+
+class DictToImageBox(ObservationWrapper):
+    def __init__(self, env):
+        super(DictToImageBox, self).__init__(env)
+        low = env.observation_space['image'].low
+        high = env.observation_space['image'].high
+        self.observation_space = spaces.Box(low=low, high=high)
+
+    def observation(self, observation):
+        return observation['image']
 
 class CostWrapper(Wrapper):
     def __init__(self, env: Env, cost_factor = 1, tensorboard_log: str=None) -> None:

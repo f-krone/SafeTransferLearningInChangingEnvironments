@@ -27,14 +27,23 @@ def make_envs(args, is_eval=False, use_state=False, logger=None):
     if not use_state:
         crop_img = args.env_name.__contains__('Fetch') and not args.env_name.__contains__('Bird')
         img_size = 2*args.env_image_size if crop_img else args.env_image_size
-        env = PixelObservation(
-            env,
-            height=img_size,
-            width=img_size,
-            robot=args.robot_shape > 0)
-        if crop_img:
-            env = CropImage(env, robot=args.robot_shape > 0)
-        env = FrameStack(env, k=args.frame_stack, max_episode_steps=max_episode_steps, robot=args.robot_shape > 0)
+        if args.cnn_3dconv:
+            env = wrappers.PixelObservation(env, width=img_size, height=img_size, add_robot=args.robot_shape > 0)
+            if crop_img:
+                env = wrappers.CropImage(env)
+            env = wrappers.FrameStack(env, stack_size=args.frame_stack, stack_type='color_channels_first', add_robot=args.robot_shape > 0, image_key='image')
+            if args.robot_shape == 0:
+                env = wrappers.DictToImageBox(env)
+            env._max_episode_steps = max_episode_steps
+        else:
+            env = PixelObservation(
+                env,
+                height=img_size,
+                width=img_size,
+                robot=args.robot_shape > 0)
+            if crop_img:
+                env = CropImage(env, robot=args.robot_shape > 0)
+            env = FrameStack(env, k=args.frame_stack, max_episode_steps=max_episode_steps, robot=args.robot_shape > 0)
     else:
         if args.env_name.__contains__('Custom'):
             env = wrappers.RemoveRobot(env)

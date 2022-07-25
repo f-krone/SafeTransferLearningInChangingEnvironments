@@ -24,7 +24,8 @@ def make_model(agent_obs_shape, action_shape, args, device):
                       num_filters = args.num_filters,
                       device = device,
                       robot_shape = args.robot_shape,
-                      cnn_stride = args.cnn_stride)
+                      cnn_stride = args.cnn_stride,
+                      cnn_3dconv = args.cnn_3dconv)
     elif Model in [SAC_State_Model]:
         model = Model(obs_shape = agent_obs_shape, 
                       action_shape = action_shape, 

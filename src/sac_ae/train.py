@@ -101,6 +101,13 @@ def train(args, wandb_run=None):
         agent_obs_shape = env.observation_space.shape
         env_obs_shape = env.observation_space.shape
         args.agent_image_size = agent_obs_shape[0]
+    elif args.cnn_3dconv:
+        if args.robot_shape > 0:
+            agent_obs_shape = env.observation_space['image'].shape
+            env_obs_shape = env.observation_space['image'].shape
+        else:
+            agent_obs_shape = env.observation_space.shape
+            env_obs_shape = env.observation_space.shape
     else:
         agent_obs_shape = (3*args.frame_stack, args.agent_image_size, args.agent_image_size)
         env_obs_shape = (3*args.frame_stack, args.env_image_size, args.env_image_size)
