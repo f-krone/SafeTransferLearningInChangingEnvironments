@@ -119,6 +119,24 @@ class PlainProjection(nn.Module):
     def forward(self, x):
         return self.projection(x)    
 
+class RobotEncoder(nn.Module):
+    def __init__(self, in_dim, architecture):
+        super().__init__()
+        self.out_dim = architecture[-1]
+        self.mlp = []
+        out_dim = in_dim
+        for dim in architecture:
+            self.mlp.append(nn.Linear(out_dim, dim))
+            self.mlp.append(nn.ReLU())
+            out_dim = dim
+        # insert LayerNorm before the Last ReLU
+        self.mlp.insert(len(self.mlp)-1, nn.LayerNorm(out_dim))
+        self.mlp = nn.Sequential(*self.mlp)
+        self.apply(weight_init)
+    
+    def forward(self, x):
+        return self.mlp(x)
+
 class Encoder(nn.Module):
     """Convolutional encoder of pixels observations."""
     def __init__(self, cnn, projection):
@@ -172,14 +190,20 @@ class Decoder(nn.Module):
 
 class Actor(nn.Module):
     """MLP actor network."""
-    def __init__(self, encoder, action_dim, hidden_dim, log_std_min, log_std_max, robot_shape):
+    def __init__(self, encoder, action_dim, hidden_dim, log_std_min, log_std_max, robot_shape, robot_encoder):
         super().__init__()
         self.encoder = encoder
+        self.robot_encoder = robot_encoder
         self.robot = robot_shape > 0
         self.mlp = []
-        out_dim = self.encoder.out_dim + robot_shape
+        out_dim = self.encoder.out_dim
+        if self.robot_encoder != None:
+            out_dim += self.robot_encoder.out_dim
+        else:
+            out_dim += robot_shape
         for dim in hidden_dim:
             self.mlp.append(nn.Linear(out_dim, dim))
+            self.mlp.append(nn.LayerNorm(dim))
             self.mlp.append(nn.ReLU())
             out_dim = dim
         self.mlp.append(nn.Linear(out_dim, 2 * action_dim))
@@ -192,6 +216,9 @@ class Actor(nn.Module):
         if self.robot:
             image = x['image']
             robot_obs = x['robot']
+
+            if self.robot_encoder != None:
+                robot_obs = self.robot_encoder(robot_obs)
 
             image = self.encoder(image, detach=detach)
             x = torch.cat([image, robot_obs], dim=1)
@@ -234,6 +261,7 @@ class QFunction(nn.Module):
         out_dim = obs_dim + action_dim
         for dim in hidden_dim:
             self.mlp.append(nn.Linear(out_dim, dim))
+            self.mlp.append(nn.LayerNorm(dim))
             self.mlp.append(nn.ReLU())
             out_dim = dim
         self.mlp.append(nn.Linear(out_dim, 1))
@@ -250,16 +278,27 @@ class QFunction(nn.Module):
 
 
 class Critic(nn.Module):
-    def __init__(self, encoder, action_dim, hidden_dim, robot_shape):
+    def __init__(self, encoder, action_dim, hidden_dim, robot_shape, robot_encoder):
         super().__init__()
         self.robot = robot_shape > 0
+        self.robot_encoder = robot_encoder
         self.encoder = encoder
-        self.Q1 = QFunction(self.encoder.out_dim + robot_shape, action_dim, hidden_dim)
-        self.Q2 = QFunction(self.encoder.out_dim + robot_shape, action_dim, hidden_dim)
+        in_dim = self.encoder.out_dim
+        if self.robot_encoder != None:
+            in_dim += self.robot_encoder.out_dim
+        else:
+            in_dim += robot_shape
+        self.Q1 = QFunction(in_dim, action_dim, hidden_dim)
+        self.Q2 = QFunction(in_dim, action_dim, hidden_dim)
         self.apply(weight_init)
 
     def forward(self, x, action, detach=False):
-        robot = x['robot'] if self.robot else None
+        if self.robot:
+            robot = x['robot']
+            if self.robot_encoder != None:
+                robot = self.robot_encoder(robot)
+        else:
+            robot = None
         x = self.encoder(x['image'] if self.robot else x, detach=detach)
         return self.Q1(x, action, robot), self.Q2(x, action, robot)
 
