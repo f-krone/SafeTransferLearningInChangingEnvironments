@@ -10,7 +10,7 @@ def main():
     project_name = run.project_name()
     wandb.tensorboard.patch(root_logdir=f'../output/sweeps/{project_name}/{run.id}/tb', pytorch=True)
     config = wandb.config
-    args = parse_args()
+    args = parse_args('')
 
     args.work_dir = f'../output/sweeps/{project_name}'
     args.exp_name = run.id
@@ -21,9 +21,15 @@ def main():
     args.env_name = 'CustomFetchReachDense-v0'
     args.batch_size = 256
     args.num_train_steps = 250000
-    args.pr_files = '../output/fetch-reach-ensemble/SAC_ensemble_'
+    args.pr_files = '../output/fetch-reach-ensemble/mj210/SAC_ensemble_'
     args.pr_size = 3
     args.robot_shape = 10
+    args.init_steps = 10000
+
+    args.critic_target_update_freq = 1
+    args.actor_update_freq = 1
+    args.actor_update_freq = 1
+    args.cnn_3dconv = True
 
     args.critic_lr = config.critic_lr
     args.actor_lr = config.actor_lr
@@ -34,8 +40,10 @@ def main():
     args.encoder_feature_dim = config.encoder_feature_dim
     args.discount = config.discount
     args.pr_alpha = config.pr_alpha
+    args.init_temperature = config.init_temperature
 
-    train(args)
+
+    train(args, run)
 
 if __name__ == '__main__':
     main()
