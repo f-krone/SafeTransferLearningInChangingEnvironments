@@ -37,9 +37,10 @@ def load_episode(fn):
 
 
 class ReplayBufferStorage:
-    def __init__(self, replay_dir, robot=False):
+    def __init__(self, replay_dir, robot=False, state=False):
         self._replay_dir = replay_dir
         self.robot = robot
+        self.state = state
         replay_dir.mkdir(exist_ok=True)
         self._current_episode = defaultdict(list)
         self._preload()
@@ -57,7 +58,7 @@ class ReplayBufferStorage:
         
         if done:
             episode = dict()
-            episode['s'] = np.array(self._current_episode['s'], dict if self.robot else np.uint8)
+            episode['s'] = np.array(self._current_episode['s'], dict if self.robot else (np.float32 if self.state else np.uint8))
             episode['a'] = np.array(self._current_episode['a'], np.float32)
             episode['r'] = np.array(self._current_episode['r'], np.float32)
 

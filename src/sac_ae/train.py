@@ -115,7 +115,7 @@ def train(args, wandb_run=None):
         env_obs_shape = (3*args.frame_stack, args.env_image_size, args.env_image_size)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    replay_storage = ReplayBufferStorage(Path(args.work_dir) / 'buffer', robot=args.robot_shape > 0)
+    replay_storage = ReplayBufferStorage(Path(args.work_dir) / 'buffer', robot=args.robot_shape > 0, state=args.agent=="sac_state")
     replay_buffer = None
 
     ep_success_buffer = deque(maxlen=100)
