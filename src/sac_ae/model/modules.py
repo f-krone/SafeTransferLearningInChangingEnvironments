@@ -127,10 +127,9 @@ class RobotEncoder(nn.Module):
         out_dim = in_dim
         for dim in architecture:
             self.mlp.append(nn.Linear(out_dim, dim))
+            self.mlp.append(nn.LayerNorm(dim))
             self.mlp.append(nn.ReLU())
             out_dim = dim
-        # insert LayerNorm before the Last ReLU
-        self.mlp.insert(len(self.mlp)-1, nn.LayerNorm(out_dim))
         self.mlp = nn.Sequential(*self.mlp)
         self.apply(weight_init)
     
