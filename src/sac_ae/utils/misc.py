@@ -9,6 +9,7 @@ from torch.utils.data import Dataset, DataLoader
 import time
 from skimage.util.shape import view_as_windows
 import imageio
+import wandb
 
 class eval_mode(object):
     def __init__(self, *models):
@@ -86,3 +87,7 @@ class VideoRecorder(object):
         if self.enabled:
             path = os.path.join(self.dir_name, file_name)
             imageio.mimsave(path, self.frames, fps=self.fps)
+
+    def wandb_upload(self, key):
+        if self.enabled:
+            wandb.log({key: wandb.Video(np.moveaxis(np.array(self.frames), -1, 1), fps=self.fps)})

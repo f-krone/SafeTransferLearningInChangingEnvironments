@@ -19,7 +19,7 @@ os.environ['MUJOCO_GL'] = 'egl'
 
 torch.backends.cudnn.benchmark = True
 
-def evaluate(env, agent, video, num_episodes, L, step, tag=None, low_cost_action=False):
+def evaluate(env, agent, video, num_episodes, L, step, tag=None, low_cost_action=False, wandb_upload=False):
     episode_rewards = []
     num_successes = 0
     video.init(enabled=True)
@@ -45,6 +45,7 @@ def evaluate(env, agent, video, num_episodes, L, step, tag=None, low_cost_action
     mean_reward = np.mean(episode_rewards)
     if L is not None:
         video.save(f'{step}.mp4')
+        video.wandb_upload('eval/video')
         L.log(f'eval/success_rate', num_successes / num_episodes, step)
         L.log(f'eval/episode_reward', mean_reward, step)
     
@@ -140,9 +141,7 @@ def train(args, wandb_run=None):
         args=args
     )
 
-    if run != None:
-        wandb.log({"model": str(model)})
-    if wandb_run != None:
+    if run != None or wandb_run != None:
         wandb.log({"model": str(model)})
     
     # run
@@ -156,7 +155,7 @@ def train(args, wandb_run=None):
             L.log('eval/episode', episode, step)
             with torch.no_grad():
                 evaluate(eval_env, agent, video, args.num_eval_episodes, L, step,
-                low_cost_action=eval_low_cost_action)
+                low_cost_action=eval_low_cost_action, wandb_upload=run != None or wandb_run != None)
             if args.save_model:
                 agent.save_model(model_dir, step)
 
