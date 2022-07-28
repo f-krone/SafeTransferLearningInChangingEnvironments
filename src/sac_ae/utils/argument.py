@@ -20,6 +20,7 @@ def parse_args(argumentString = None):
     parser.add_argument('--env_name', default='CustomFetchPushDense-v0')
     parser.add_argument('--action_repeat', default=1, type=int)
     parser.add_argument('--frame_stack', default=3, type=int)
+    parser.add_argument('--cost', default='no_cost', type=str)
     # replay buffer
     parser.add_argument('--replay_buffer_capacity', default=300000, type=int)
     # train
@@ -115,6 +116,7 @@ def parse_args(argumentString = None):
     assert (args.agent in ['curl', 'sacae', 'sac', 'rad', 'drq', 'atc', 'sac_state'])
     assert args.sacae_red_weight == None or args.sacae_red_weight <= 3
     assert args.sacae_red_weight == None or args.sacae_red_weight >= 0
+    assert args.cost in ['no_cost', 'reward', 'critic_train', 'critic_eval']
 
     if args.agent in ['curl', 'rad']:
         args.env_image_size = 100

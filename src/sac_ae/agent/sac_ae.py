@@ -44,6 +44,8 @@ class SACAE(SAC):
         self.model.actor.train(training)
         self.model.critic.train(training)
         self.model.autoencoder.train(training)
+        if self.train_cost_critic:
+            self.model.cost_critic.train()
 
 
     def update_autoencoder(self, x, L, step):
@@ -66,7 +68,13 @@ class SACAE(SAC):
 
 
     def update(self, replay_buffer, L, step):
-        obs, action, reward, next_obs, not_done = replay_buffer.sample()
+        if self.train_cost_critic:
+            obs, action, reward, cost, next_obs, not_done = replay_buffer.sample()
+            if step % self.log_interval == 0:
+                L.log('train/batch_cost', cost.mean(), step)
+            self.update_cost_critic(obs, action, cost, next_obs, not_done, L, step)
+        else:
+            obs, action, reward, next_obs, not_done = replay_buffer.sample()
     
         if step % self.log_interval == 0:
             L.log('train/batch_reward', reward.mean(), step)

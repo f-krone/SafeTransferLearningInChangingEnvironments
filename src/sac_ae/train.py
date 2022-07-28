@@ -5,7 +5,7 @@ import wandb
 from utils.argument import parse_args
 from utils.misc import set_seed_everywhere, make_dir, VideoRecorder, eval_mode
 from utils.logger import Logger
-from memory import ReplayBufferStorage, make_replay_buffer
+from memory import ReplayBufferStorage, ReplayBufferStorageCost, make_replay_buffer
 from model import make_model
 from env import make_envs
 from agent import make_agent
@@ -19,7 +19,7 @@ os.environ['MUJOCO_GL'] = 'egl'
 
 torch.backends.cudnn.benchmark = True
 
-def evaluate(env, agent, video, num_episodes, L, step, tag=None):
+def evaluate(env, agent, video, num_episodes, L, step, tag=None, low_cost_action=False):
     episode_rewards = []
     num_successes = 0
     video.init(enabled=True)
@@ -30,7 +30,10 @@ def evaluate(env, agent, video, num_episodes, L, step, tag=None):
         info = {}
         while not done:
             with eval_mode(agent):
-                action = agent.select_action(obs)
+                if low_cost_action:
+                    action = agent.select_low_cost_action(obs)
+                else:
+                    action = agent.select_action(obs)
             obs, reward, done, info = env.step(action)
             video.record(env)
             episode_reward += reward
@@ -90,7 +93,7 @@ def train(args, wandb_run=None):
         )
         wandb.tensorboard.patch(root_logdir=f'{args.work_dir}/tb', pytorch=True)
     else:
-        print("Not using Weight&Biases. Please specify project and name.")
+        print("Not using Weights&Biases. Please specify project and name.")
     L = Logger(args.work_dir, use_tb=args.save_tb, config=args.agent)
 
     # prepare env
@@ -115,7 +118,14 @@ def train(args, wandb_run=None):
         env_obs_shape = (3*args.frame_stack, args.env_image_size, args.env_image_size)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    replay_storage = ReplayBufferStorage(Path(args.work_dir) / 'buffer', robot=args.robot_shape > 0, state=args.agent=="sac_state")
+    save_cost = args.cost in ['critic_train', 'critic_eval']
+    eval_low_cost_action = args.cost == 'critic_eval'
+    log_cost = args.cost != 'no_cost'
+
+    if save_cost:
+        replay_storage = ReplayBufferStorageCost(Path(args.work_dir) / 'buffer', robot=args.robot_shape > 0, state=args.agent=="sac_state")
+    else:
+        replay_storage = ReplayBufferStorage(Path(args.work_dir) / 'buffer', robot=args.robot_shape > 0, state=args.agent=="sac_state")
     replay_buffer = None
 
     ep_success_buffer = deque(maxlen=100)
@@ -136,7 +146,7 @@ def train(args, wandb_run=None):
         wandb.log({"model": str(model)})
     
     # run
-    episode, episode_reward, done, info = 0, 0, True, {}
+    episode, episode_reward, episode_cost, done, info = 0, 0, 0, True, {}
     start_time = time.time()
 
     for step in range(args.num_train_steps+1):
@@ -145,24 +155,32 @@ def train(args, wandb_run=None):
         if step > 0 and step % args.eval_freq == 0:
             L.log('eval/episode', episode, step)
             with torch.no_grad():
-                evaluate(eval_env, agent, video, args.num_eval_episodes, L, step)
+                evaluate(eval_env, agent, video, args.num_eval_episodes, L, step,
+                low_cost_action=eval_low_cost_action)
             if args.save_model:
                 agent.save_model(model_dir, step)
 
         if done:
             if step > 0:
-                replay_storage.add(obs, None, None, True)  # add the last observation for each episode
+                # add the last observation for each episode
+                if save_cost:
+                    replay_storage.add(obs, None, None, None, True)
+                else:
+                    replay_storage.add(obs, None, None, True)
                 ep_success_buffer.append(info.get('is_success'))
                 if step % args.log_interval == 0:
                     L.log('train/episode_reward', episode_reward, step)
                     L.log('train/duration', time.time() - start_time, step)
                     L.log('train/success_rate', sum(1 for _ in filter(lambda x: x, iter(ep_success_buffer))) / len(ep_success_buffer), step)
+                    if log_cost:
+                        L.log('train/episode_cost', episode_cost, step)
                     L.dump(step)
                 start_time = time.time()
 
             obs = env.reset()
             done = False
             episode_reward = 0
+            episode_cost = 0
             episode_step = 0
             episode += 1
             if step % args.log_interval == 0:
@@ -189,7 +207,8 @@ def train(args, wandb_run=None):
                                                    device=device,
                                                    image_size=args.agent_image_size,
                                                    image_pad=args.image_pad,
-                                                   robot=args.robot_shape > 0)
+                                                   robot=args.robot_shape > 0,
+                                                   save_cost=save_cost)
 
 
             num_updates = 1 if step > args.init_steps else args.init_steps
@@ -201,7 +220,12 @@ def train(args, wandb_run=None):
         # allow infinit bootstrap
         done_bool = 0 if episode_step + 1 == env._max_episode_steps else float(done)
         episode_reward += reward
-        replay_storage.add(obs, action, reward, done_bool)    
+        if log_cost:
+            episode_cost += info['cost']
+        if save_cost:
+            replay_storage.add(obs, action, reward, info['cost'], done_bool)
+        else:
+            replay_storage.add(obs, action, reward, done_bool)
 
         obs = next_obs
         episode_step += 1

@@ -29,6 +29,8 @@ class SAC(object):
         self.discount = args.discount
         self.detach_encoder = args.detach_encoder
         self.robot = args.robot_shape > 0
+        self.train_cost_critic = args.cost in ['critic_train', 'critic_eval']
+        self.train_actor_with_cost = args.cost == 'critic_train'
         
         self.log_alpha = torch.tensor(np.log(args.init_temperature)).to(device)
         self.log_alpha.requires_grad = True
@@ -41,17 +43,25 @@ class SAC(object):
         self.critic_optimizer = torch.optim.Adam(
             self.model.critic.parameters(), lr=args.critic_lr, betas=(args.critic_beta, 0.999))
 
+        if self.train_cost_critic:
+            self.cost_critic_optimizer = torch.optim.Adam(
+                self.model.cost_critic.parameters(), lr=args.critic_lr, betas=(args.critic_beta, 0.999))
+
         self.log_alpha_optimizer = torch.optim.Adam(
             [self.log_alpha], lr=args.alpha_lr, betas=(args.alpha_beta, 0.999))
 
 
         self.train()
         self.model.critic_target.train()
+        if self.train_cost_critic:
+            self.model.cost_critic_target.train()
 
     def train(self, training=True):
         self.training = training
         self.model.actor.train(training)
         self.model.critic.train(training)
+        if self.train_cost_critic:
+            self.model.cost_critic.train()
 
     @property
     def alpha(self):
@@ -78,6 +88,34 @@ class SAC(object):
                 obs, compute_pi=False, compute_log_pi=False
             )
             return mu.cpu().data.numpy().flatten()
+    
+    def select_low_cost_action(self, obs):
+        if not self.train_cost_critic:
+            return self.select_action(obs)
+
+        if self.robot:
+            if obs['image'].shape[-1] != self.image_size:
+                obs['image'] = center_crop_image(obs['image'], self.image_size)
+        else:
+            if obs.shape[-1] != self.image_size:
+                obs = center_crop_image(obs, self.image_size)
+
+        with torch.no_grad():
+            if self.robot:
+                obs['image'] = torch.FloatTensor(obs['image']).to(self.device)
+                obs['robot'] = torch.FloatTensor(obs['robot']).to(self.device)
+                obs['image'] = obs['image'].unsqueeze(0)
+                obs['robot'] = obs['robot'].unsqueeze(0)
+            else:
+                obs = torch.FloatTensor(obs).to(self.device)
+                obs = obs.unsqueeze(0)
+            # There is probably room for improvements here if passing a batch to the actor and critic, but this works for now.
+            actions = []
+            for _ in range(10):
+                _, pi, _, _ = self.model.actor(obs, compute_log_pi=False)
+                actions.append(pi)
+            action = min(map(lambda x: (max(self.model.cost_critic(obs, x)), x), iter(actions)),key=lambda x: x[0])[1]
+            return action.cpu().data.numpy().flatten()
 
     def sample_action(self, obs):
         if self.robot:
@@ -109,7 +147,7 @@ class SAC(object):
 
         # get current Q estimates
         current_Q1, current_Q2 = self.model.critic(
-            obs, action, detach=self.detach_encoder)
+            obs, action, detach=True)# Only train the encoder on the reward critic. Not sure what is best here.
         critic_loss = F.mse_loss(current_Q1,
                                  target_Q) + F.mse_loss(current_Q2, target_Q)
         if step % self.log_interval == 0:
@@ -120,13 +158,41 @@ class SAC(object):
         critic_loss.backward()
         self.critic_optimizer.step()
 
+    def update_cost_critic(self, obs, action, cost, next_obs, not_done, L, step):
+        with torch.no_grad():
+            _, policy_action, log_pi, _ = self.model.actor(next_obs)
+            target_Q1, target_Q2 = self.model.cost_critic_target(next_obs, policy_action)
+            target_V = torch.max(target_Q1,
+                                 target_Q2) - self.alpha.detach() * log_pi
+            target_Q = cost + (not_done * self.discount * target_V)
+
+        # get current Q estimates
+        current_Q1, current_Q2 = self.model.cost_critic(
+            obs, action, detach=self.detach_encoder)
+        critic_loss = F.mse_loss(current_Q1,
+                                 target_Q) + F.mse_loss(current_Q2, target_Q)
+        if step % self.log_interval == 0:
+            L.log('train_cost_critic/loss', critic_loss, step)
+
+        # Optimize the critic
+        self.cost_critic_optimizer.zero_grad()
+        critic_loss.backward()
+        self.cost_critic_optimizer.step()
+
     def update_actor_and_alpha(self, obs, L, step):
         # detach encoder, so we don't update it with the actor loss
         _, pi, log_pi, log_std = self.model.actor(obs, detach=True)
-        actor_Q1, actor_Q2 = self.model.critic(obs, pi, detach=True)
 
+        actor_Q1, actor_Q2 = self.model.critic(obs, pi, detach=True)
         actor_Q = torch.min(actor_Q1, actor_Q2)
-        actor_loss = (self.alpha.detach() * log_pi - actor_Q).mean()
+        
+        if self.train_actor_with_cost:
+            cost_Q1, cost_Q2 = self.model.cost_critic(obs, pi, detach=True)
+            cost_Q = torch.max(cost_Q1, cost_Q2)
+            
+            actor_loss = (self.alpha.detach() * log_pi + cost_Q - actor_Q).mean()
+        else:
+            actor_loss = (self.alpha.detach() * log_pi - actor_Q).mean()
 
         if step % self.log_interval == 0:
             L.log('train_actor/loss', actor_loss, step)
@@ -152,7 +218,13 @@ class SAC(object):
 
 
     def update(self, replay_buffer, L, step):
-        obs, action, reward, next_obs, not_done = replay_buffer.sample()
+        if self.train_cost_critic:
+            obs, action, reward, cost, next_obs, not_done = replay_buffer.sample()
+            if step % self.log_interval == 0:
+                L.log('train/batch_cost', cost.mean(), step)
+            self.update_cost_critic(obs, action, cost, next_obs, not_done, L, step)
+        else:
+            obs, action, reward, next_obs, not_done = replay_buffer.sample()
     
         if step % self.log_interval == 0:
             L.log('train/batch_reward', reward.mean(), step)

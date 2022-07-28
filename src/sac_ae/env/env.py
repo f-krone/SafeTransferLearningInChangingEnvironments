@@ -49,7 +49,9 @@ def make_envs(args, is_eval=False, use_state=False, logger=None):
             env = wrappers.RemoveRobot(env)
         if args.env_name.__contains__('Fetch'):
             env = wrappers.ConcatDict(env)
-        env._max_episode_steps = max_episode_steps
+    if args.cost == 'reward':
+        env = wrappers.CostWrapper(env)
+    env._max_episode_steps = max_episode_steps
     return env
 
 class PixelObservation(gym.ObservationWrapper):
