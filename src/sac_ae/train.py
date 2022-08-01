@@ -19,14 +19,16 @@ os.environ['MUJOCO_GL'] = 'egl'
 
 torch.backends.cudnn.benchmark = True
 
-def evaluate(env, agent, video, num_episodes, L, step, tag=None, low_cost_action=False, wandb_upload=False):
+def evaluate(env, agent, video, num_episodes, L, step, log_cost, tag=None, low_cost_action=False, wandb_upload=False):
     episode_rewards = []
+    episode_costs = []
     num_successes = 0
     video.init(enabled=True)
     for _ in range(num_episodes):
         obs = env.reset()
         done = False
         episode_reward = 0
+        episode_cost = 0
         info = {}
         while not done:
             with eval_mode(agent):
@@ -37,8 +39,11 @@ def evaluate(env, agent, video, num_episodes, L, step, tag=None, low_cost_action
             obs, reward, done, info = env.step(action)
             video.record(env)
             episode_reward += reward
+            if log_cost:
+                episode_cost += info['cost']
 
         episode_rewards.append(episode_reward)
+        episode_costs.append(episode_cost)
         if info.get('is_success'):
             num_successes += 1
     
@@ -48,6 +53,8 @@ def evaluate(env, agent, video, num_episodes, L, step, tag=None, low_cost_action
         video.wandb_upload('eval/video')
         L.log(f'eval/success_rate', num_successes / num_episodes, step)
         L.log(f'eval/episode_reward', mean_reward, step)
+        if log_cost:
+            L.log('eval/episode_cost', np.mean(episode_costs), step)
     
     return mean_reward
 
@@ -154,7 +161,7 @@ def train(args, wandb_run=None):
         if step > 0 and step % args.eval_freq == 0:
             L.log('eval/episode', episode, step)
             with torch.no_grad():
-                evaluate(eval_env, agent, video, args.num_eval_episodes, L, step,
+                evaluate(eval_env, agent, video, args.num_eval_episodes, L, step, log_cost,
                 low_cost_action=eval_low_cost_action, wandb_upload=run != None or wandb_run != None)
             if args.save_model:
                 agent.save_model(model_dir, step)

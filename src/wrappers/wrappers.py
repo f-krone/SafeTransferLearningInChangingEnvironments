@@ -162,19 +162,23 @@ class DictToImageBox(ObservationWrapper):
         return observation['image']
 
 class CostWrapper(Wrapper):
-    def __init__(self, env: Env, cost_factor = 1, tensorboard_log: str=None) -> None:
+    def __init__(self, env: Env, cost_factor = 1, tensorboard_log: str=None, logger=None, logger_key_prefix='') -> None:
         super().__init__(env)
         self.tensorboard_log = tensorboard_log
         if tensorboard_log != None:
             self.writer = SummaryWriter(log_dir=tensorboard_log)
         else:
             self.writer = None
+        self.logger = logger
+        self.logger_key_prefix = logger_key_prefix
         self.reward_sum = 0
         self.cost_sum = 0
         self.logged = False
         self.cost_factor = cost_factor
+        self.steps = 0
 
     def step(self, action):
+        self.steps += 1
         observation, reward, done, info = self.env.step(action)
         self.reward_sum += reward
         self.cost_sum += info['cost']
@@ -184,8 +188,11 @@ class CostWrapper(Wrapper):
     
     def reset(self, **kwargs):
         if self.writer != None and self.logged:
-            self.writer.add_scalar('cost/reward', self.reward_sum)
-            self.writer.add_scalar('cost/cost', self.cost_sum)
+            self.writer.add_scalar(self.logger_key_prefix + 'cost_wrapper_reward', self.reward_sum)
+            self.writer.add_scalar(self.logger_key_prefix + 'cost_wrapper_cost', self.cost_sum)
+        if self.logger != None and self.logged:
+            self.logger.log(self.logger_key_prefix + 'cost_wrapper_reward', self.reward_sum, self.steps)
+            self.logger.log(self.logger_key_prefix + 'cost_wrapper_cost', self.cost_sum, self.steps)
         self.reward_sum = 0
         self.cost_sum = 0
         self.logged = False

@@ -50,7 +50,7 @@ def make_envs(args, is_eval=False, use_state=False, logger=None):
         if args.env_name.__contains__('Fetch'):
             env = wrappers.ConcatDict(env)
     if args.cost == 'reward':
-        env = wrappers.CostWrapper(env)
+        env = wrappers.CostWrapper(env, logger=logger, logger_key_prefix='eval/' if is_eval else 'train/')
     env._max_episode_steps = max_episode_steps
     return env
 
