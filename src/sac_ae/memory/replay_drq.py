@@ -212,23 +212,40 @@ class ReplayBuffer(object):
         reward = torch.unsqueeze(reward, dim=-1)
         not_done = torch.ones_like(reward)  # episode ends because of maximal step limits 
         
-        obs_aug = obs.clone()
-        next_obs_aug = next_obs.clone()
-        
-        obs = obs.float().to(self.device)
         action = action.to(self.device)
         reward = reward.to(self.device)
-        next_obs = next_obs.float().to(self.device)
         not_done = not_done.to(self.device)
 
-        obs_aug = obs_aug.float().to(self.device)
-        next_obs_aug = next_obs_aug.float().to(self.device)
+        if self.robot:
+            obs_aug = {k: obs[k].clone() for k in obs.keys()}
+            next_obs_aug = {k: obs[k].clone() for k in next_obs.keys()}
+            
+            obs = {k: obs[k].float().to(self.device) for k in obs.keys()}
+            next_obs = {k: next_obs[k].float().to(self.device) for k in next_obs.keys()}
 
-        obs = self.aug_trans(obs)
-        next_obs = self.aug_trans(next_obs)
+            obs_aug = {k: obs_aug[k].float().to(self.device) for k in obs_aug.keys()}
+            next_obs_aug = {k: next_obs_aug[k].float().to(self.device) for k in next_obs_aug.keys()}
 
-        obs_aug = self.aug_trans(obs_aug)
-        next_obs_aug = self.aug_trans(next_obs_aug)
+            obs['image'] = self.aug_trans(obs['image'])
+            next_obs['image'] = self.aug_trans(next_obs['image'])
+
+            obs_aug['image'] = self.aug_trans(obs_aug['image'])
+            next_obs_aug['image'] = self.aug_trans(next_obs_aug['image'])
+        else:
+            obs_aug = obs.clone()
+            next_obs_aug = next_obs.clone()
+            
+            obs = obs.float().to(self.device)
+            next_obs = next_obs.float().to(self.device)
+
+            obs_aug = obs_aug.float().to(self.device)
+            next_obs_aug = next_obs_aug.float().to(self.device)
+
+            obs = self.aug_trans(obs)
+            next_obs = self.aug_trans(next_obs)
+
+            obs_aug = self.aug_trans(obs_aug)
+            next_obs_aug = self.aug_trans(next_obs_aug)
         
         return obs, action, reward, next_obs, not_done, obs_aug, next_obs_aug    
     

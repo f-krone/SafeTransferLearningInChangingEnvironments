@@ -147,7 +147,7 @@ class SAC(object):
 
         # get current Q estimates
         current_Q1, current_Q2 = self.model.critic(
-            obs, action, detach=True)# Only train the encoder on the reward critic. Not sure what is best here.
+            obs, action, detach=self.detach_encoder)
         critic_loss = F.mse_loss(current_Q1,
                                  target_Q) + F.mse_loss(current_Q2, target_Q)
         if step % self.log_interval == 0:
@@ -168,7 +168,7 @@ class SAC(object):
 
         # get current Q estimates
         current_Q1, current_Q2 = self.model.cost_critic(
-            obs, action, detach=self.detach_encoder)
+            obs, action, detach=True)# Only train the encoder on the reward critic. Not sure what is best here.
         critic_loss = F.mse_loss(current_Q1,
                                  target_Q) + F.mse_loss(current_Q2, target_Q)
         if step % self.log_interval == 0:
