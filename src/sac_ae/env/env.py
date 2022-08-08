@@ -23,7 +23,7 @@ def make_envs(args, is_eval=False, use_state=False, logger=None):
                 return SAC.load(file_name, ensemble_env)
             return SAC.load(file_name)
         model_wrapper = wrappers.ModelWrapper(list(map(lambda i: load_model(args.pr_files + str(i)), range(args.pr_size))), obs_keys=['achieved_goal', 'desired_goal', 'observation'])
-        env = wrappers.PreferenceReward(env, model_wrapper, max_mse=4, alpha=args.pr_alpha, logger=logger)
+        env = wrappers.PreferenceReward(env, model_wrapper, max_mse=4, alpha=args.pr_alpha, internal_reward_as_cost=args.pr_as_cost, logger=logger)
     if not use_state:
         crop_img = args.env_name.__contains__('Fetch') and not args.env_name.__contains__('Bird')
         img_size = 2*args.env_image_size if crop_img else args.env_image_size

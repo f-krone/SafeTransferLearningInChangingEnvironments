@@ -43,9 +43,52 @@ class DRQ(SAC):
         critic_loss.backward()
         self.critic_optimizer.step()
 
+    def update_cost_critic(self, obs, action, cost, next_obs, not_done, L, step, obs_aug, next_obs_aug):
+        with torch.no_grad():
+            # target Q from next_obs
+            _, policy_action, log_pi, _ = self.model.actor(next_obs)
+            target_Q1, target_Q2 = self.model.cost_critic_target(next_obs, policy_action)
+            target_V = torch.max(target_Q1,
+                                 target_Q2) - self.alpha.detach() * log_pi
+            target_Q = cost + (not_done * self.discount * target_V)
+            
+            # target Q from next_obs_aug
+            _, policy_action_aug, log_pi_aug, _ = self.model.actor(next_obs_aug)
+            target_Q1_aug, target_Q2_aug = self.model.cost_critic_target(next_obs_aug, policy_action_aug)
+            target_V_aug = torch.max(target_Q1_aug,
+                                 target_Q2_aug) - self.alpha.detach() * log_pi_aug
+            target_Q_aug = cost + (not_done * self.discount * target_V_aug)
+            
+            target_Q = (target_Q + target_Q_aug) / 2
+
+        # get current Q estimates
+        current_Q1, current_Q2 = self.model.cost_critic(
+            obs, action, detach=True)# Only train the encoder on the reward critic. Not sure what is best here.
+        current_Q1_aug, current_Q2_aug = self.model.cost_critic(
+            obs_aug, action, detach=False)
+        critic_loss = F.mse_loss(current_Q1,target_Q) + \
+                      F.mse_loss(current_Q2, target_Q) + \
+                      F.mse_loss(current_Q1_aug,target_Q) +  \
+                      F.mse_loss(current_Q2_aug, target_Q)
+        if step % self.log_interval == 0:
+            L.log('train_cost_critic/loss', critic_loss, step)
+
+        # Optimize the critic
+        self.cost_critic_optimizer.zero_grad()
+        critic_loss.backward()
+        self.cost_critic_optimizer.step()
+
 
     def update(self, replay_buffer, L, step):
-        obs, action, reward, next_obs, not_done, obs_aug, next_obs_aug = replay_buffer.sample_drq()
+
+        
+        if self.train_cost_critic:
+            obs, action, reward, cost, next_obs, not_done, obs_aug, next_obs_aug = replay_buffer.sample_drq()
+            if step % self.log_interval == 0:
+                L.log('train/batch_cost', cost.mean(), step)
+            self.update_cost_critic(obs, action, cost, next_obs, not_done, L, step, obs_aug, next_obs_aug)
+        else:
+            obs, action, reward, next_obs, not_done, obs_aug, next_obs_aug = replay_buffer.sample_drq()
     
         if step % self.log_interval == 0:
             L.log('train/batch_reward', reward.mean(), step)

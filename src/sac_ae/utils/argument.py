@@ -102,6 +102,7 @@ def parse_args(argumentString = None):
     parser.add_argument('--pr_size', default=1, type=int)
     parser.add_argument('--pr_env', default=None, type=str)
     parser.add_argument('--pr_alpha', default=1.0, type=float)
+    parser.add_argument('--pr_as_cost', default=False, type=bool)
 
     #wandb
     parser.add_argument('--wandb_project', default=None, type=str)

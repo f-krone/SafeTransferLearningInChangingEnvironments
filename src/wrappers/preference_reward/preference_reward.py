@@ -6,7 +6,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 class PreferenceReward(Wrapper):
     #TODO calc max_mse from the env.action_space
-    def __init__(self, env: Env, preferenceModel: ModelWrapper, max_mse: float, alpha: Union[int, Callable[[float], float], str], tensorboard_log: str=None, logger=None) -> None:
+    def __init__(self, env: Env, preferenceModel: ModelWrapper, max_mse: float, alpha: Union[int, Callable[[float], float], str], internal_reward_as_cost=False, tensorboard_log: str=None, logger=None) -> None:
         super().__init__(env)
         self.preferenceModel = preferenceModel
         self.alpha = alpha
@@ -17,6 +17,7 @@ class PreferenceReward(Wrapper):
             self.writer = SummaryWriter(log_dir=tensorboard_log)
         else:
             self.writer = None
+        self.internal_reward_as_cost = internal_reward_as_cost
         self.logger = logger
         self.env_reward_mean = 0
         self.internal_rewards = []
@@ -56,7 +57,11 @@ class PreferenceReward(Wrapper):
         internal_reward = self._calc_internal_reward(observation, action)
         rew = (1 - self._get_alpha()) * reward - self._get_alpha() * internal_reward
         self.calc_rewards.append(rew)
-        return observation, rew, done, info
+        if self.internal_reward_as_cost:
+            info['cost'] = internal_reward
+            return observation, reward, done, info
+        else:
+            return observation, rew, done, info
 
     
     def reset(self, **kwargs):
