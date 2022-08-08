@@ -51,7 +51,7 @@ class SACAE(SAC):
     def update_autoencoder(self, x, L, step):
         x = x['image'] if self.robot else x
         recon_x = self.model.autoencoder.recon(x)
-        target = preprocess_obs(x[:,:,0,:,:] if self.cnn_3dconv else x)
+        target = preprocess_obs(x)
 
         if self.red_weight == None:
             recon_loss = F.mse_loss(recon_x, target)

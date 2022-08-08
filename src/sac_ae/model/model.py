@@ -150,10 +150,16 @@ class SACAE_Model(SAC_Model):
         super().__init__(obs_shape, action_shape, hidden_dim, encoder_feature_dim, log_std_min, 
                          log_std_max, num_layers, num_filters, device, robot_shape, cnn_stride, cnn_3dconv, robot_encoder_architecture, cost)
 
-        decoder = m.Decoder(num_channels = obs_shape[0], 
+        if cnn_3dconv:
+            num_channels = obs_shape[0] * obs_shape[1]
+        else:
+            num_channels = obs_shape[0]
+        decoder = m.Decoder(num_channels = num_channels, 
                             feature_dim = encoder_feature_dim, 
                             num_layers = num_layers,
-                            num_filters = num_filters)
+                            num_filters = num_filters,
+                            cnn_3dconv = cnn_3dconv,
+                            stack_size = obs_shape[1])
 
         self.autoencoder = m.AutoEncoder(self.critic.encoder, decoder, robot_shape > 0).to(device)
 

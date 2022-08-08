@@ -127,9 +127,9 @@ class RobotEncoder(nn.Module):
         out_dim = in_dim
         for dim in architecture:
             self.mlp.append(nn.Linear(out_dim, dim))
-            self.mlp.append(nn.LayerNorm(dim))
             self.mlp.append(nn.ReLU())
             out_dim = dim
+        self.mlp.insert(len(self.mlp)-1, nn.LayerNorm(out_dim))
         self.mlp = nn.Sequential(*self.mlp)
         self.apply(weight_init)
     
@@ -161,13 +161,24 @@ class StateEncoder(nn.Module):
         return self.projection(x)
 
 class Decoder(nn.Module):
-    def __init__(self, num_channels, feature_dim, num_layers = 4, num_filters = 32):
+    def __init__(self, num_channels, feature_dim, num_layers = 4, num_filters = 32, cnn_3dconv=False, stack_size=3, image_size=84):
         super().__init__()
 
         self.num_layers = num_layers
         self.num_filters = num_filters
         self.out_dim = OUT_DIM[num_layers]
+        self.cnn_3dconv = cnn_3dconv
+        self.stack_size = stack_size
+        self.image_size = image_size
 
+        # if self.cnn_3dconv:
+        #     self.fc = nn.Linear(feature_dim, 64*1*11*11)
+
+        #     self.deconvs = nn.ModuleList()
+        #     self.deconvs.append(nn.ConvTranspose3d(64, 32, kernel_size=3, stride=2, output_padding=0))
+        #     self.deconvs.append(nn.ConvTranspose3d(32, 16, kernel_size=3, stride=(2, 2, 2), padding=(2, 2, 2), output_padding=0))
+        #     self.deconvs.append(nn.ConvTranspose3d(16, num_channels, kernel_size=3, stride=(2, 2, 2), padding=(2, 2, 2), output_padding=(0, 1, 1)))
+        # else:
         self.fc = nn.Linear(feature_dim, num_filters * self.out_dim * self.out_dim)
 
         self.deconvs = nn.ModuleList()
@@ -178,12 +189,16 @@ class Decoder(nn.Module):
 
     def forward(self, h):
         h = torch.relu(self.fc(h))
+        # if self.cnn_3dconv:
+        #     x = h.view(-1, 64, 1, 11, 11)
+        # else:
         x = h.view(-1, self.num_filters, self.out_dim, self.out_dim)
-        
-        for i in range(0, self.num_layers - 1):
-            x = torch.relu(self.deconvs[i](x))
 
+        for i in range(0,len(self.deconvs) - 1):
+            x = torch.relu(self.deconvs[i](x))
         obs = self.deconvs[-1](x)
+        if self.cnn_3dconv:
+            obs = obs.view(-1, 3, self.stack_size, self.image_size, self.image_size)
         return obs
 
 
@@ -202,7 +217,6 @@ class Actor(nn.Module):
             out_dim += robot_shape
         for dim in hidden_dim:
             self.mlp.append(nn.Linear(out_dim, dim))
-            self.mlp.append(nn.LayerNorm(dim))
             self.mlp.append(nn.ReLU())
             out_dim = dim
         self.mlp.append(nn.Linear(out_dim, 2 * action_dim))
@@ -260,7 +274,6 @@ class QFunction(nn.Module):
         out_dim = obs_dim + action_dim
         for dim in hidden_dim:
             self.mlp.append(nn.Linear(out_dim, dim))
-            self.mlp.append(nn.LayerNorm(dim))
             self.mlp.append(nn.ReLU())
             out_dim = dim
         self.mlp.append(nn.Linear(out_dim, 1))
