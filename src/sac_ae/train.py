@@ -148,6 +148,9 @@ def train(args, wandb_run=None):
         args=args
     )
 
+    if args.load_model != None:
+        agent.load_model(args.load_model)
+
     if run != None or wandb_run != None:
         wandb.log({"model": str(model)})
     

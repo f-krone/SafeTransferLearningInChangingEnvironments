@@ -96,6 +96,7 @@ def parse_args(argumentString = None):
     parser.add_argument('--robot_shape', default=0, type=int)
     parser.add_argument('--robot_feature_dim', default=None, type=str)
     parser.add_argument('--exp_name', default=None, type=str)
+    parser.add_argument('--load_model', default=None, type=str)
 
     #preferenece reward
     parser.add_argument('--pr_files', default=None, type=str)
