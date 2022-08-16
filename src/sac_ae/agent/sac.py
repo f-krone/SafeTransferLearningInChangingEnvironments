@@ -77,15 +77,11 @@ class SAC(object):
             
         with torch.no_grad():
             if self.robot:
-                obs['image'] = torch.FloatTensor(obs['image']).to(self.device)
-                obs['robot'] = torch.FloatTensor(obs['robot']).to(self.device)
-                obs['image'] = obs['image'].unsqueeze(0)
-                obs['robot'] = obs['robot'].unsqueeze(0)
+                obs_torch = {k: torch.FloatTensor(obs[k]).to(self.device).unsqueeze(0) for k in obs.keys()}
             else:
-                obs = torch.FloatTensor(obs).to(self.device)
-                obs = obs.unsqueeze(0)
+                obs_torch = torch.FloatTensor(obs).to(self.device).unsqueeze(0)
             mu, _, _, _ = self.model.actor(
-                obs, compute_pi=False, compute_log_pi=False
+                obs_torch, compute_pi=False, compute_log_pi=False
             )
             return mu.cpu().data.numpy().flatten()
     
@@ -102,19 +98,15 @@ class SAC(object):
 
         with torch.no_grad():
             if self.robot:
-                obs['image'] = torch.FloatTensor(obs['image']).to(self.device)
-                obs['robot'] = torch.FloatTensor(obs['robot']).to(self.device)
-                obs['image'] = obs['image'].unsqueeze(0)
-                obs['robot'] = obs['robot'].unsqueeze(0)
+                obs_torch = {k: torch.FloatTensor(obs[k]).to(self.device).unsqueeze(0) for k in obs.keys()}
             else:
-                obs = torch.FloatTensor(obs).to(self.device)
-                obs = obs.unsqueeze(0)
+                obs_torch = torch.FloatTensor(obs).to(self.device).unsqueeze(0)
             # There is probably room for improvements here if passing a batch to the actor and critic, but this works for now.
             actions = []
             for _ in range(10):
-                _, pi, _, _ = self.model.actor(obs, compute_log_pi=False)
+                _, pi, _, _ = self.model.actor(obs_torch, compute_log_pi=False)
                 actions.append(pi)
-            action = min(map(lambda x: (max(self.model.cost_critic(obs, x)), x), iter(actions)),key=lambda x: x[0])[1]
+            action = min(map(lambda x: (max(self.model.cost_critic(obs_torch, x)), x), iter(actions)),key=lambda x: x[0])[1]
             return action.cpu().data.numpy().flatten()
 
     def sample_action(self, obs):
@@ -127,14 +119,10 @@ class SAC(object):
 
         with torch.no_grad():
             if self.robot:
-                obs['image'] = torch.FloatTensor(obs['image']).to(self.device)
-                obs['robot'] = torch.FloatTensor(obs['robot']).to(self.device)
-                obs['image'] = obs['image'].unsqueeze(0)
-                obs['robot'] = obs['robot'].unsqueeze(0)
+                obs_torch = {k: torch.FloatTensor(obs[k]).to(self.device).unsqueeze(0) for k in obs.keys()}
             else:
-                obs = torch.FloatTensor(obs).to(self.device)
-                obs = obs.unsqueeze(0)
-            mu, pi, _, _ = self.model.actor(obs, compute_log_pi=False)
+                obs_torch = torch.FloatTensor(obs).to(self.device).unsqueeze(0)
+            mu, pi, _, _ = self.model.actor(obs_torch, compute_log_pi=False)
             return pi.cpu().data.numpy().flatten()
 
     def update_critic(self, obs, action, reward, next_obs, not_done, L, step):

@@ -279,13 +279,9 @@ class QFunction(nn.Module):
         self.mlp.append(nn.Linear(out_dim, 1))
         self.mlp = nn.Sequential(*self.mlp)
 
-    def forward(self, obs, action, robot):
+    def forward(self, obs, action):
         assert obs.size(0) == action.size(0)
-        if robot != None:
-            assert obs.size(0) == robot.size(0)
-            obs_action = torch.cat([obs, robot, action], dim=1)
-        else:
-            obs_action = torch.cat([obs, action], dim=1)
+        obs_action = torch.cat([obs, action], dim=1)
         return self.mlp(obs_action)
 
 
@@ -306,13 +302,15 @@ class Critic(nn.Module):
 
     def forward(self, x, action, detach=False):
         if self.robot:
+            image = self.encoder(x['image'], detach=detach)
             robot = x['robot']
             if self.robot_encoder != None:
                 robot = self.robot_encoder(robot)
+            x = torch.cat([image, robot], dim=1)
+            return self.Q1(x, action), self.Q2(x, action)
         else:
-            robot = None
-        x = self.encoder(x['image'] if self.robot else x, detach=detach)
-        return self.Q1(x, action, robot), self.Q2(x, action, robot)
+            x = self.encoder(x, detach=detach)
+            return self.Q1(x, action), self.Q2(x, action)
 
 
 class CURL(nn.Module):
