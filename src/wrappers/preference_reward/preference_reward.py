@@ -9,7 +9,8 @@ class PreferenceReward(Wrapper):
     def __init__(self, env: Env, preferenceModel: ModelWrapper, max_mse: float, alpha: Union[int, Callable[[float], float], str], internal_reward_as_cost=False, tensorboard_log: str=None, logger=None) -> None:
         super().__init__(env)
         self.preferenceModel = preferenceModel
-        self.alpha = alpha
+        self.alpha = 0.0
+        self.alpha_param = alpha
         self.tensorboard_log = tensorboard_log
         self.max_mse = max_mse
         self.steps = 0
@@ -36,26 +37,24 @@ class PreferenceReward(Wrapper):
         return internal_reward
 
     def _get_alpha(self) -> float:
-        if callable(self.alpha):
-            return self.alpha(self.steps)
-        if type(self.alpha) == str and self.alpha == 'auto':
+        if callable(self.alpha_param):
+            return self.alpha_param(self.steps)
+        if type(self.alpha_param) == str and self.alpha_param == 'auto':
             assert self.env_reward_mean <= 0, "Env reward is always below tero, the mean should be as well"
             #return np.min([1.0, 1.0-1.05**(self.env_reward_mean)])
             reward_min = -15
             reward_max = 0
             alpha = 1.0 - (reward_min - self.env_reward_mean) / (reward_min - reward_max)
             alpha = np.max([np.min([1.0, alpha]), 0.0])
-            assert alpha >= 0.0, "Alpha should be at least 0"
-            assert alpha <= 1.0, "Alpha should be at most 1"
             return alpha
-        return self.alpha
+        return self.alpha_param
 
     def step(self, action):
         observation, reward, done, info = self.env.step(action)
         self.steps += 1
         self.external_rewards.append(reward)
         internal_reward = self._calc_internal_reward(observation, action)
-        rew = (1 - self._get_alpha()) * reward - self._get_alpha() * internal_reward
+        rew = (1 - self.alpha) * reward - self.alpha * internal_reward
         self.calc_rewards.append(rew)
         if self.internal_reward_as_cost:
             info['cost'] = internal_reward
@@ -65,6 +64,7 @@ class PreferenceReward(Wrapper):
 
     
     def reset(self, **kwargs):
+        self.alpha = self._get_alpha()
         if self.env_reward_mean == 0:
             self.env_reward_mean = np.sum(self.external_rewards)
         else:

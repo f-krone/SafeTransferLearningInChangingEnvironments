@@ -217,6 +217,7 @@ class Actor(nn.Module):
             out_dim += robot_shape
         for dim in hidden_dim:
             self.mlp.append(nn.Linear(out_dim, dim))
+            self.mlp.append(nn.LayerNorm(dim))
             self.mlp.append(nn.ReLU())
             out_dim = dim
         self.mlp.append(nn.Linear(out_dim, 2 * action_dim))
@@ -274,6 +275,7 @@ class QFunction(nn.Module):
         out_dim = obs_dim + action_dim
         for dim in hidden_dim:
             self.mlp.append(nn.Linear(out_dim, dim))
+            self.mlp.append(nn.LayerNorm(dim))
             self.mlp.append(nn.ReLU())
             out_dim = dim
         self.mlp.append(nn.Linear(out_dim, 1))
