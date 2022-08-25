@@ -50,7 +50,8 @@ def evaluate(env, agent, video, num_episodes, L, step, log_cost, tag=None, low_c
     mean_reward = np.mean(episode_rewards)
     if L is not None:
         video.save(f'{step}.mp4')
-        video.wandb_upload('eval/video')
+        if wandb_upload:
+            video.wandb_upload('eval/video')
         L.log(f'eval/success_rate', num_successes / num_episodes, step)
         L.log(f'eval/episode_reward', mean_reward, step)
         if log_cost:
@@ -157,6 +158,7 @@ def train(args, wandb_run=None):
     # run
     episode, episode_reward, episode_cost, done, info = 0, 0, 0, True, {}
     start_time = time.time()
+    best_eval_reward = -1000
 
     for step in range(args.num_train_steps+1):
         # evaluate agent periodically
@@ -164,10 +166,14 @@ def train(args, wandb_run=None):
         if step > 0 and step % args.eval_freq == 0:
             L.log('eval/episode', episode, step)
             with torch.no_grad():
-                evaluate(eval_env, agent, video, args.num_eval_episodes, L, step, log_cost,
+                eval_reward = evaluate(eval_env, agent, video, args.num_eval_episodes, L, step, log_cost,
                 low_cost_action=eval_low_cost_action, wandb_upload=run != None or wandb_run != None)
             if args.save_model:
                 agent.save_model(model_dir, step)
+            if args.save_best_model and eval_reward > best_eval_reward:
+                best_eval_reward = eval_reward
+                agent.save_model(args.work_dir, 'best_model')
+                print(f'Saving best model with reward: {eval_reward}')
 
         if done:
             if step > 0:

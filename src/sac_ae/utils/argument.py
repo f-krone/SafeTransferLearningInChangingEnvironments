@@ -90,6 +90,7 @@ def parse_args(argumentString = None):
     parser.add_argument('--save_buffer', default=False, action='store_true')
     parser.add_argument('--save_video', default=True, action='store_true')
     parser.add_argument('--save_model', default=True, action='store_true')
+    parser.add_argument('--save_best_model', default=True, action='store_true')
     parser.add_argument('--detach_encoder', default=False, action='store_true')
     parser.add_argument('--log_interval', default=25, type=int)
     parser.add_argument('--tag', default='', type=str)
