@@ -105,6 +105,7 @@ def parse_args(argumentString = None):
     parser.add_argument('--pr_alpha', default=1.0, type=float)
     parser.add_argument('--pr_as_cost', default=False, action='store_true')
     parser.add_argument('--pr_adapt_alpha', default='constant', type=str)
+    parser.add_argument('--pr_remove_barrier', default=False, action='store_true')
 
     #wandb
     parser.add_argument('--wandb_project', default=None, type=str)
@@ -120,7 +121,7 @@ def parse_args(argumentString = None):
     assert args.sacae_red_weight == None or args.sacae_red_weight <= 3
     assert args.sacae_red_weight == None or args.sacae_red_weight >= 0
     assert args.cost in ['no_cost', 'reward', 'critic_train', 'critic_eval']
-    assert args.pr_adapt_alpha in ['constant', 'reward_based']
+    assert args.pr_adapt_alpha in ['constant', 'reward_based', 'steps_based']
 
     if args.agent in ['curl', 'rad']:
         args.env_image_size = 100

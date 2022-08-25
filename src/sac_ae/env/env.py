@@ -22,9 +22,12 @@ def make_envs(args, is_eval=False, use_state=False, logger=None):
                 ensemble_env = DummyVecEnv([make_ensemble_env])
                 return SAC.load(file_name, ensemble_env)
             return SAC.load(file_name)
-        model_wrapper = wrappers.ModelWrapper(list(map(lambda i: load_model(args.pr_files + str(i)), range(args.pr_size))), obs_keys=['achieved_goal', 'desired_goal', 'observation'])
+        model_wrapper = wrappers.ModelWrapper(list(map(lambda i: load_model(args.pr_files + str(i)), range(args.pr_size))), 
+            obs_keys=['achieved_goal', 'desired_goal', 'observation'], remove_barrier=args.pr_remove_barrier)
         if args.pr_adapt_alpha == 'constant':
             alpha = args.pr_alpha
+        elif args.pr_adapt_alpha == 'steps_based':
+            alpha = lambda steps: 1 - steps / args.num_train_steps
         else:
             alpha = 'auto'
         env = wrappers.PreferenceReward(env, model_wrapper, max_mse=4, alpha=alpha, internal_reward_as_cost=args.pr_as_cost, logger=logger)
