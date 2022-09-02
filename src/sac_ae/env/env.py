@@ -8,22 +8,30 @@ import custom_robotics
 import wrappers
 from stable_baselines3 import SAC
 from stable_baselines3.common.vec_env import DummyVecEnv
+import torch
+
+from utils.argument import Arguments
+from sac_ae.model import make_model
+from sac_ae.agent import make_agent
 
 def make_envs(args, is_eval=False, use_state=False, logger=None):
     env = gym.make(args.env_name)
     max_episode_steps = env._max_episode_steps
     env.seed(args.seed)
     if not is_eval and args.pr_files != None:
-        def load_model(file_name):
-            if args.pr_env != None:
-                def make_ensemble_env():
-                        env = gym.make(args.pr_env)
-                        return env
-                ensemble_env = DummyVecEnv([make_ensemble_env])
-                return SAC.load(file_name, ensemble_env)
-            return SAC.load(file_name)
-        model_wrapper = wrappers.ModelWrapper(list(map(lambda i: load_model(args.pr_files + str(i)), range(args.pr_size))), 
-            obs_keys=['achieved_goal', 'desired_goal', 'observation'], remove_barrier=args.pr_remove_barrier)
+        if args.pr_sb3_ensemble:
+            def load_model(file_name):
+                if args.pr_env != None:
+                    def make_ensemble_env():
+                            env = gym.make(args.pr_env)
+                            return env
+                    ensemble_env = DummyVecEnv([make_ensemble_env])
+                    return SAC.load(file_name, ensemble_env)
+                return SAC.load(file_name)
+            model_wrapper = wrappers.ModelWrapper(list(map(lambda i: load_model(args.pr_files + str(i)), range(args.pr_size))), 
+                obs_keys=['achieved_goal', 'desired_goal', 'observation'], remove_barrier=args.pr_remove_barrier)
+        else:
+            model_wrapper = make_ensemble(args, env.action_space.shape)
         if args.pr_adapt_alpha == 'constant':
             alpha = args.pr_alpha
         elif args.pr_adapt_alpha == 'steps_based':
@@ -60,6 +68,24 @@ def make_envs(args, is_eval=False, use_state=False, logger=None):
         env = wrappers.CostWrapper(env, logger=logger, logger_key_prefix='eval/' if is_eval else 'train/')
     env._max_episode_steps = max_episode_steps
     return env
+
+def make_ensemble(args, action_shape):
+    def load_model(path):
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        loaded_args = Arguments(path + 'args.json')
+        weights = torch.load(path + 'best_model.pt')
+
+        if loaded_args.agent == 'sac_state':
+            agent_obs_shape = weights['actor.encoder.projection.projection.0.weight'].shape[1:]
+            loaded_args.agent_image_size = agent_obs_shape[0]
+        else:
+            agent_obs_shape = (3*loaded_args.frame_stack, loaded_args.agent_image_size, loaded_args.agent_image_size)
+
+        model = make_model(agent_obs_shape, action_shape, loaded_args, device)
+        agent = make_agent(model, device, action_shape, loaded_args)
+        agent.load_model_from_dict(weights)
+        return agent
+    return wrappers.SACAEModelWrapper(list(map(lambda i: load_model(args.pr_files + str(i) + '/'), range(args.pr_size))), remove_barrier=args.pr_remove_barrier)
 
 class PixelObservation(gym.ObservationWrapper):
     def __init__(self, env, width=128, height=128, robot=False):

@@ -232,3 +232,5 @@ class SAC(object):
 
     def load_model(self, file, map_location=None):
         self.model.load_state_dict(torch.load(file, map_location=map_location))
+    def load_model_from_dict(self, weights):
+        self.model.load_state_dict(weights)

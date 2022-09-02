@@ -246,7 +246,7 @@ def train(args, wandb_run=None):
         episode_step += 1
     
     if run != None:
-        run.finish()
+        run.finish(quiet=True)
 
 def main():
     args = parse_args()

@@ -2,11 +2,12 @@ from typing import Callable, Union
 from gym import Env, Wrapper
 import numpy as np
 from wrappers.preference_reward.model_wrapper import ModelWrapper
+from wrappers.preference_reward.sac_ae_model_wrapper import SACAEModelWrapper
 from torch.utils.tensorboard import SummaryWriter
 
 class PreferenceReward(Wrapper):
     #TODO calc max_mse from the env.action_space
-    def __init__(self, env: Env, preferenceModel: ModelWrapper, max_mse: float, alpha: Union[int, Callable[[float], float], str], internal_reward_as_cost=False, tensorboard_log: str=None, logger=None) -> None:
+    def __init__(self, env: Env, preferenceModel: Union[ModelWrapper, SACAEModelWrapper], max_mse: float, alpha: Union[int, Callable[[float], float], str], internal_reward_as_cost=False, tensorboard_log: str=None, logger=None) -> None:
         super().__init__(env)
         self.preferenceModel = preferenceModel
         self.alpha = 0.0

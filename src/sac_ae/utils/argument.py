@@ -107,6 +107,7 @@ def parse_args(argumentString = None):
     parser.add_argument('--pr_as_cost', default=False, action='store_true')
     parser.add_argument('--pr_adapt_alpha', default='constant', type=str)
     parser.add_argument('--pr_remove_barrier', default=False, action='store_true')
+    parser.add_argument('--pr_sb3_ensemble', default=False, action='store_true')
 
     #wandb
     parser.add_argument('--wandb_project', default=None, type=str)
@@ -136,3 +137,7 @@ def parse_args(argumentString = None):
 
     return args
 
+class Arguments:
+    def __init__(self, file) -> None:
+        with open(file, 'r') as f:
+            self.__dict__ =  json.load(f)
