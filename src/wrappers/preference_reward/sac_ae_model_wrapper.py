@@ -12,7 +12,7 @@ class SACAEModelWrapper:
         self.teacher = 0
 
     def calc_action(self, observation) -> Tuple[np.ndarray, float]:
-        actions = np.asarray(list(map(lambda model: model.select_action(self._transform_obs(observation))[0], iter(self.models))))
+        actions = np.asarray(list(map(lambda model: model.sample_action(self._transform_obs(observation)), iter(self.models))))
         action = np.zeros(actions.shape[1:])
         if self.use_mean:
             action = actions.mean(axis=0)

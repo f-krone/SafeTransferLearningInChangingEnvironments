@@ -96,11 +96,11 @@ def train(args, wandb_run=None):
             entity="f-krone",
             name=args.wandb_name,
             config=args,
-            #sync_tensorboard=True,  # auto-upload sb3's tensorboard metrics
+            sync_tensorboard=True,  # auto-upload sb3's tensorboard metrics
             monitor_gym=True,  # auto-upload the videos of agents playing the game
             save_code=True,  # optional
         )
-        wandb.tensorboard.patch(root_logdir=f'{args.work_dir}/tb', pytorch=True)
+        #wandb.tensorboard.patch(root_logdir=f'{args.work_dir}/tb', pytorch=True)
     else:
         print("Not using Weights&Biases. Please specify project and name.")
     L = Logger(args.work_dir, use_tb=args.save_tb, config=args.agent)

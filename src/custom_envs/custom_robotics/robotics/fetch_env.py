@@ -290,7 +290,7 @@ class FetchEnv(robot_env.RobotEnv):
         pos1 = self.initial_gripper_xpos[1]
         while np.abs(pos1 - self.initial_gripper_xpos[1]) < 0.1:
             # place the barrier alway in front of the object if it is too far back, or behing respectively. Decide at random if the object is roughly centered
-            self.place_in_front = True if object_xpos[1] > 0.8 else False if object_xpos[1] < 0.7 else np.random.randint(0, 2, dtype=bool)
+            self.place_in_front = True if object_xpos[1] > 0.8 else False if object_xpos[1] < 0.7 else self.np_random.randint(0, 2, dtype=bool)
 
             #the barrier will always have a distance of at least 0.1 to the object and 0.2 to the table edge
             if self.place_in_front:
