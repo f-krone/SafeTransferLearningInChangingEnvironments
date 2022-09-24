@@ -108,6 +108,7 @@ def parse_args(argumentString = None):
     parser.add_argument('--pr_adapt_alpha', default='constant', type=str)
     parser.add_argument('--pr_remove_barrier', default=False, action='store_true')
     parser.add_argument('--pr_sb3_ensemble', default=False, action='store_true')
+    parser.add_argument('--pr_stochastic', default=False, action='store_true')
 
     #wandb
     parser.add_argument('--wandb_project', default=None, type=str)

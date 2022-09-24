@@ -9,7 +9,7 @@ MODEL_XML_PATH_BARRIER = os.path.join("fetch", "push_barrier.xml")
 
 
 class FetchPushEnv(fetch_env.FetchEnv, utils.EzPickle):
-    def __init__(self, reward_type="sparse", has_barrier=False, bird_eye_view=False):
+    def __init__(self, reward_type="sparse", has_barrier=False, barrier_size=0.1, bird_eye_view=False):
         initial_qpos = {
             "robot0:slide0": 0.405,
             "robot0:slide1": 0.48,
@@ -31,6 +31,7 @@ class FetchPushEnv(fetch_env.FetchEnv, utils.EzPickle):
             initial_qpos=initial_qpos,
             reward_type=reward_type,
             has_barrier=has_barrier,
+            barrier_size=barrier_size,
             bird_eye_view=bird_eye_view
         )
         utils.EzPickle.__init__(self, reward_type=reward_type)

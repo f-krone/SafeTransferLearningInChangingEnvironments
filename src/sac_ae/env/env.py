@@ -73,7 +73,7 @@ def make_ensemble(args, action_shape):
     def load_model(path):
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         loaded_args = Arguments(path + 'args.json')
-        weights = torch.load(path + 'best_model.pt')
+        weights = torch.load(path + 'best_model.pt', map_location=device)
 
         if loaded_args.agent == 'sac_state':
             agent_obs_shape = weights['actor.encoder.projection.projection.0.weight'].shape[1:]
@@ -85,7 +85,7 @@ def make_ensemble(args, action_shape):
         agent = make_agent(model, device, action_shape, loaded_args)
         agent.load_model_from_dict(weights)
         return agent
-    return wrappers.SACAEModelWrapper(list(map(lambda i: load_model(args.pr_files + str(i) + '/'), range(args.pr_size))), remove_barrier=args.pr_remove_barrier)
+    return wrappers.SACAEModelWrapper(list(map(lambda i: load_model(args.pr_files + str(i) + '/'), range(args.pr_size))), remove_barrier=args.pr_remove_barrier, stochastic=args.pr_stochastic)
 
 class PixelObservation(gym.ObservationWrapper):
     def __init__(self, env, width=128, height=128, robot=False):

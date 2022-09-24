@@ -26,7 +26,8 @@ class FetchEnv(robot_env.RobotEnv):
         initial_qpos,
         reward_type,
         has_barrier = False,
-        bird_eye_view = False
+        barrier_size = 0.1,
+        bird_eye_view = False,
     ):
         """Initializes a new Fetch environment.
 
@@ -54,6 +55,7 @@ class FetchEnv(robot_env.RobotEnv):
         self.distance_threshold = distance_threshold
         self.reward_type = reward_type
         self.has_barrier = has_barrier
+        self.barrier_size = barrier_size
         self.bird_eye_view = bird_eye_view
 
         super(FetchEnv, self).__init__(
@@ -222,7 +224,7 @@ class FetchEnv(robot_env.RobotEnv):
         goal = self.sim.data.get_body_xpos("barrier0").copy()
 
         #make sure the goal is always behind the barrier when seen from the object
-        goal[0] = self.np_random.uniform(goal[0] - 0.04, goal[0] + 0.04)
+        goal[0] = self.np_random.uniform(goal[0] - self.barrier_size / 2, goal[0] + self.barrier_size / 2)
         #make sure the goal has a distance of at least 0.1 to the barrier and 0.05 to the table edge
         if self.place_in_front:
             goal[1] = self.np_random.uniform(0.47, goal[1] - 0.1)
@@ -283,8 +285,13 @@ class FetchEnv(robot_env.RobotEnv):
     def _place_barrier(self, object_xpos):
         height = self.sim.data.get_site_xpos('object0')[2]
         body_id = self.sim.model.body_name2id('barrier0')
+        geom_id = self.sim.model.geom_name2id('barrier0')
+        self.sim.model.geom_size[geom_id][0] = self.barrier_size
+
         #make sure the object is completely on the table
-        pos0 = self.np_random.uniform(1.2, 1.45)
+        # actual formula: 1.3 +/- (0.5 - 2 * self.barrier_size) / 2 with 1.3 beig the table center and 0.5 the table width
+        # simplified version used below
+        pos0 = self.np_random.uniform(1.05 + self.barrier_size, 1.55 - self.barrier_size)
 
         #make sure, the barrier has a distance of at least 0.1 to the gripper
         pos1 = self.initial_gripper_xpos[1]
