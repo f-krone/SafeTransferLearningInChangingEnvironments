@@ -163,17 +163,20 @@ def train(args, wandb_run=None):
     for step in range(args.num_train_steps+1):
         # evaluate agent periodically
 
-        if step > 0 and step % args.eval_freq == 0:
-            L.log('eval/episode', episode, step)
-            with torch.no_grad():
-                eval_reward = evaluate(eval_env, agent, video, args.num_eval_episodes, L, step, log_cost,
-                low_cost_action=eval_low_cost_action, wandb_upload=run != None or wandb_run != None)
-            if args.save_model:
+        if step > 0:
+            if step % args.eval_freq == 0:
+                L.log('eval/episode', episode, step)
+                with torch.no_grad():
+                    eval_reward = evaluate(eval_env, agent, video, args.num_eval_episodes, L, step, log_cost,
+                    low_cost_action=eval_low_cost_action, wandb_upload=run != None or wandb_run != None)
+                if args.save_best_model and eval_reward > best_eval_reward:
+                    best_eval_reward = eval_reward
+                    agent.save_model(model_dir, 'best_model')
+                    print(f'Saving best model with reward: {eval_reward}')
+                if args.save_model:
+                    agent.save_model(model_dir, 'latest_model')
+            if args.save_model and step % args.save_freq == 0:
                 agent.save_model(model_dir, step)
-            if args.save_best_model and eval_reward > best_eval_reward:
-                best_eval_reward = eval_reward
-                agent.save_model(args.work_dir, 'best_model')
-                print(f'Saving best model with reward: {eval_reward}')
 
         if done:
             if step > 0:
