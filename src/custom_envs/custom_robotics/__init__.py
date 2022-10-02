@@ -71,7 +71,7 @@ for reward_type in ["sparse", "dense"]:
         id=env_name,
         entry_point="custom_robotics.robotics:FetchPushEnv",
         kwargs=kwargs,
-        max_episode_steps=100,
+        max_episode_steps=150,
     )
 
 for reward_type in ["sparse", "dense"]:
@@ -91,7 +91,7 @@ for reward_type in ["sparse", "dense"]:
         id=env_name,
         entry_point="custom_robotics.robotics:FetchPushEnv",
         kwargs=kwargs,
-        max_episode_steps=100,
+        max_episode_steps=150,
     )
 
 for reward_type in ["sparse", "dense"]:
