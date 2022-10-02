@@ -63,6 +63,10 @@ def train(args, wandb_run=None):
     args.hidden_dim = list(map(lambda x: int(x), iter(args.hidden_dim.split(','))))
     if args.robot_feature_dim != None:
         args.robot_feature_dim = list(map(lambda x: int(x), iter(args.robot_feature_dim.split(','))))
+    if args.pr_file_list != None:
+        args.pr_file_list = args.pr_file_list.split(',')
+    if args.pr_model_name_list != None:
+        args.pr_model_name_list = args.pr_model_name_list.split(',')
 
     # prepare workspace
     set_seed_everywhere(args.seed)

@@ -40,7 +40,7 @@ def make_envs(args, is_eval=False, use_state=False, logger=None):
             alpha = lambda steps: 1 - steps / args.num_train_steps
         else:
             alpha = 'auto'
-        env = wrappers.PreferenceReward(env, model_wrapper, max_mse=4, alpha=alpha, internal_reward_as_cost=args.pr_as_cost, logger=logger)
+        env = wrappers.PreferenceReward(env, model_wrapper, max_mse=4, alpha=alpha, remove_last_dim=not args.pr_keep_last_dim, internal_reward_as_cost=args.pr_as_cost, logger=logger)
     if not use_state:
         crop_img = args.env_name.__contains__('Fetch') and not args.env_name.__contains__('Bird')
         img_size = 2*args.env_image_size if crop_img else args.env_image_size
@@ -70,10 +70,10 @@ def make_envs(args, is_eval=False, use_state=False, logger=None):
     return env
 
 def make_ensemble(args, action_shape):
-    def load_model(path):
+    def load_model(path, model_name):
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         loaded_args = Arguments(path + 'args.json')
-        weights = torch.load(path + 'best_model.pt', map_location=device)
+        weights = torch.load(path + model_name, map_location=device)
 
         if loaded_args.agent == 'sac_state':
             agent_obs_shape = weights['actor.encoder.projection.projection.0.weight'].shape[1:]
@@ -85,7 +85,13 @@ def make_ensemble(args, action_shape):
         agent = make_agent(model, device, action_shape, loaded_args)
         agent.load_model_from_dict(weights)
         return agent
-    return wrappers.SACAEModelWrapper(list(map(lambda i: load_model(args.pr_files + str(i) + '/'), range(args.pr_size))), remove_barrier=args.pr_remove_barrier, stochastic=args.pr_stochastic)
+    if args.pr_file_list != None:
+        model_names = args.pr_model_name_list if args.pr_model_name_list != None else [args.pr_model_name] * len(args.pr_model_name_list)
+        model_list = list(map(lambda file: load_model(args.pr_files + file[0], file[1]), zip(iter(args.pr_file_list), iter(model_names))))
+    else:
+        model_names = args.pr_model_name_list if args.pr_model_name_list != None else [args.pr_model_name] * args.pr_size
+        model_list = list(map(lambda i: load_model(args.pr_files + str(i) + '/', model_names[i]), range(args.pr_size)))
+    return wrappers.SACAEModelWrapper(model_list, remove_barrier=args.pr_remove_barrier, stochastic=args.pr_stochastic)
 
 class PixelObservation(gym.ObservationWrapper):
     def __init__(self, env, width=128, height=128, robot=False):

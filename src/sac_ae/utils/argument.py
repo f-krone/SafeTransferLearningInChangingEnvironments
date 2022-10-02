@@ -103,6 +103,9 @@ def parse_args(argumentString = None):
     #preferenece reward
     parser.add_argument('--pr_files', default=None, type=str)
     parser.add_argument('--pr_size', default=1, type=int)
+    parser.add_argument('--pr_file_list', default=None, type=str)
+    parser.add_argument('--pr_model_name', default='model/best_model.pt', type=str)
+    parser.add_argument('--pr_model_name_list', default=None, type=str)
     parser.add_argument('--pr_env', default=None, type=str)
     parser.add_argument('--pr_alpha', default=1.0, type=float)
     parser.add_argument('--pr_as_cost', default=False, action='store_true')
@@ -110,6 +113,7 @@ def parse_args(argumentString = None):
     parser.add_argument('--pr_remove_barrier', default=False, action='store_true')
     parser.add_argument('--pr_sb3_ensemble', default=False, action='store_true')
     parser.add_argument('--pr_stochastic', default=False, action='store_true')
+    parser.add_argument('--pr_keep_last_dim', default=False, action='store_true')
 
     #wandb
     parser.add_argument('--wandb_project', default=None, type=str)

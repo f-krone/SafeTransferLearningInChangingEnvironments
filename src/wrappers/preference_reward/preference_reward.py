@@ -1,3 +1,4 @@
+from re import S
 from typing import Callable, Union
 from gym import Env, Wrapper
 import numpy as np
@@ -7,7 +8,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 class PreferenceReward(Wrapper):
     #TODO calc max_mse from the env.action_space
-    def __init__(self, env: Env, preferenceModel: Union[ModelWrapper, SACAEModelWrapper], max_mse: float, alpha: Union[int, Callable[[float], float], str], internal_reward_as_cost=False, tensorboard_log: str=None, logger=None) -> None:
+    def __init__(self, env: Env, preferenceModel: Union[ModelWrapper, SACAEModelWrapper], max_mse: float, alpha: Union[int, Callable[[float], float], str], remove_last_dim=True, internal_reward_as_cost=False, tensorboard_log: str=None, logger=None) -> None:
         super().__init__(env)
         self.preferenceModel = preferenceModel
         self.alpha = 0.0
@@ -19,6 +20,7 @@ class PreferenceReward(Wrapper):
             self.writer = SummaryWriter(log_dir=tensorboard_log)
         else:
             self.writer = None
+        self.remove_last_dim = remove_last_dim
         self.internal_reward_as_cost = internal_reward_as_cost
         self.logger = logger
         self.env_reward_mean = 0
@@ -30,7 +32,10 @@ class PreferenceReward(Wrapper):
 
     def _calc_internal_reward(self, observation, action) -> float:
         preference_action, confidence = self.preferenceModel.calc_action(observation)
-        action_error = ((action - preference_action)**2).mean()
+        if self.remove_last_dim:
+            action_error = ((action[:-1] - preference_action[:-1])**2).mean()
+        else:
+            action_error = ((action - preference_action)**2).mean()
         internal_reward = confidence * action_error / self.max_mse
         self.internal_rewards.append(internal_reward)
         self.confidences.append(confidence)
