@@ -86,10 +86,16 @@ def make_ensemble(args, action_shape):
         agent.load_model_from_dict(weights)
         return agent
     if args.pr_file_list != None:
-        model_names = args.pr_model_name_list if args.pr_model_name_list != None else [args.pr_model_name] * len(args.pr_model_name_list)
+        if args.pr_model_name_list != None:
+            model_names = args.pr_model_name_list  
+        else:
+            model_names = [args.pr_model_name] * len(args.pr_file_list)
         model_list = list(map(lambda file: load_model(args.pr_files + file[0], file[1]), zip(iter(args.pr_file_list), iter(model_names))))
     else:
-        model_names = args.pr_model_name_list if args.pr_model_name_list != None else [args.pr_model_name] * args.pr_size
+        if args.pr_model_name_list != None:
+            model_names = args.pr_model_name_list
+        else:
+            model_names = [args.pr_model_name] * args.pr_size
         model_list = list(map(lambda i: load_model(args.pr_files + str(i) + '/', model_names[i]), range(args.pr_size)))
     return wrappers.SACAEModelWrapper(model_list, remove_barrier=args.pr_remove_barrier, stochastic=args.pr_stochastic)
 
