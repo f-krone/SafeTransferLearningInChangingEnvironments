@@ -31,6 +31,8 @@ class SAC(object):
         self.robot = args.robot_shape > 0
         self.train_cost_critic = args.cost in ['critic_train', 'critic_eval']
         self.train_actor_with_cost = args.cost == 'critic_train'
+        self.cost_samples = args.cost_samples
+        self.cost_allowed_threshold = args.cost_allowed_threshold
         
         self.log_alpha = torch.tensor(np.log(args.init_temperature)).to(device)
         self.log_alpha.requires_grad = True
@@ -103,10 +105,15 @@ class SAC(object):
                 obs_torch = torch.FloatTensor(obs).to(self.device).unsqueeze(0)
             # There is probably room for improvements here if passing a batch to the actor and critic, but this works for now.
             actions = []
-            for _ in range(10):
+            for _ in range(self.cost_samples):
                 _, pi, _, _ = self.model.actor(obs_torch, compute_log_pi=False)
                 actions.append(pi)
-            action = min(map(lambda x: (max(self.model.cost_critic(obs_torch, x)), x), iter(actions)),key=lambda x: x[0])[1]
+            costs = list(map(lambda x: max(self.model.cost_critic(obs_torch, x)), iter(actions)))
+            low_cost = list(filter(lambda x: x[1] < self.cost_allowed_threshold, enumerate(costs)))
+            if len(low_cost) > 0:
+                action = max(map(lambda x: (min(self.model.critic(obs_torch, actions[x[0]])), actions[x[0]]), iter(low_cost)), key=lambda x: x[0])[1]
+            else:
+                action = actions[min(enumerate(costs), key=lambda x: x[1])[0]]
             return action.cpu().data.numpy().flatten()
 
     def sample_action(self, obs):

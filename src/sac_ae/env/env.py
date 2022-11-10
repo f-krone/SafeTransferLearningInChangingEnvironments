@@ -40,7 +40,9 @@ def make_envs(args, is_eval=False, use_state=False, logger=None):
             alpha = lambda steps: 1 - steps / args.num_train_steps
         else:
             alpha = 'auto'
-        env = wrappers.PreferenceReward(env, model_wrapper, max_mse=4, alpha=alpha, remove_last_dim=not args.pr_keep_last_dim, internal_reward_as_cost=args.pr_as_cost, logger=logger)
+        env = wrappers.PreferenceReward(env, model_wrapper, max_mse=4, alpha=alpha, remove_last_dim=not args.pr_keep_last_dim, 
+            internal_reward_as_cost=args.pr_as_cost, alpha_reward_max=args.pr_adapt_alpha_reward_max, 
+            alpha_reward_min=args.pr_adapt_alpha_reward_min, logger=logger)
     if not use_state:
         crop_img = args.env_name.__contains__('Fetch') and not args.env_name.__contains__('Bird')
         img_size = 2*args.env_image_size if crop_img else args.env_image_size

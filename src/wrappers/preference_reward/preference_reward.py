@@ -8,7 +8,9 @@ from torch.utils.tensorboard import SummaryWriter
 
 class PreferenceReward(Wrapper):
     #TODO calc max_mse from the env.action_space
-    def __init__(self, env: Env, preferenceModel: Union[ModelWrapper, SACAEModelWrapper], max_mse: float, alpha: Union[int, Callable[[float], float], str], remove_last_dim=True, internal_reward_as_cost=False, tensorboard_log: str=None, logger=None) -> None:
+    def __init__(self, env: Env, preferenceModel: Union[ModelWrapper, SACAEModelWrapper], max_mse: float, 
+    alpha: Union[int, Callable[[float], float], str], alpha_reward_min=-14, alpha_reward_max=0, remove_last_dim=True, 
+    internal_reward_as_cost=False, tensorboard_log: str=None, logger=None) -> None:
         super().__init__(env)
         self.preferenceModel = preferenceModel
         self.alpha = 0.0
@@ -16,6 +18,8 @@ class PreferenceReward(Wrapper):
         self.tensorboard_log = tensorboard_log
         self.max_mse = max_mse
         self.steps = 0
+        self.alpha_reward_min = alpha_reward_min
+        self.alpha_reward_max = alpha_reward_max
         if tensorboard_log != None:
             self.writer = SummaryWriter(log_dir=tensorboard_log)
         else:
@@ -47,10 +51,7 @@ class PreferenceReward(Wrapper):
             return self.alpha_param(self.steps)
         if type(self.alpha_param) == str and self.alpha_param == 'auto':
             assert self.env_reward_mean <= 0, "Env reward is always below tero, the mean should be as well"
-            #return np.min([1.0, 1.0-1.05**(self.env_reward_mean)])
-            reward_min = -15
-            reward_max = 0
-            alpha = 1.0 - (reward_min - self.env_reward_mean) / (reward_min - reward_max)
+            alpha = 1.0 - (self.alpha_reward_min - self.env_reward_mean) / (self.alpha_reward_min - self.alpha_reward_max)
             alpha = np.max([np.min([1.0, alpha]), 0.0])
             return alpha
         return self.alpha_param

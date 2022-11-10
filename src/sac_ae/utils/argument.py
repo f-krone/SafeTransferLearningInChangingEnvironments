@@ -31,6 +31,8 @@ def parse_args(argumentString = None):
     # eval
     parser.add_argument('--eval_freq', default=10000, type=int)
     parser.add_argument('--num_eval_episodes', default=10, type=int)
+    parser.add_argument('--cost_samples', default=10, type=int)
+    parser.add_argument('--cost_allowed_threshold', default=0.05, type=float)
     # critic
     parser.add_argument('--critic_lr', default=1e-5, type=float)
     parser.add_argument('--critic_beta', default=0.9, type=float)
@@ -114,6 +116,8 @@ def parse_args(argumentString = None):
     parser.add_argument('--pr_sb3_ensemble', default=False, action='store_true')
     parser.add_argument('--pr_stochastic', default=False, action='store_true')
     parser.add_argument('--pr_keep_last_dim', default=False, action='store_true')
+    parser.add_argument('--pr_adapt_alpha_reward_min', default=-15, type=int)
+    parser.add_argument('--pr_adapt_alpha_reward_max', default=0, type=int)
 
     #wandb
     parser.add_argument('--wandb_project', default=None, type=str)
