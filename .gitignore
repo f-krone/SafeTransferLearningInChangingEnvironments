@@ -2,6 +2,11 @@ src/notebooks/models/
 src/notebooks/runs/
 src/notebooks/videos/
 src/notebooks/wandb/
+src/notebooks/analysis/buffer
+src/notebooks/analysis/ensemble_analysis
+src/notebooks/analysis/model_analysis
+src/notebooks/analysis/results
+src/notebooks/analysis/videos
 src/wandb/
 src/notebooks/fetch-reach-ensemble-preference
 src/sac_ae/log
