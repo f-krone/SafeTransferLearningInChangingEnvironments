@@ -8,15 +8,15 @@ from sac_ae.train import train
 
 def main():
     ensemble_size = 3
-    project_name = 'fetch-push-cost-ensemble'
+    project_name = 'fetch-push-cost-small-ensemble'
     seeds = np.random.randint(10000, size=ensemble_size)
-    for i in range(ensemble_size):
+    for i in range(1, ensemble_size):
         args = parse_args('')
 
         args.work_dir = f'../output/{project_name}'
         args.exp_name = f'SAC_ensemble_{i}'
         args.agent = 'sac_state' 
-        args.env_name = 'CustomFetchPushCostDense-v0' 
+        args.env_name = 'CustomFetchPushCostSmallDense-v0' 
         args.cost = 'reward' 
         args.batch_size = 256 
         args.critic_lr = 1e-4 
