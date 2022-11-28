@@ -36,8 +36,8 @@ def main():
                     args.seed = seed
 
                     if pr:
-                        args.pr_files = '../output/fetch-reach-ae-ensemble/SAC_ensemble_'
-                        args.pr_model_name = 'best_model.pt'
+                        args.pr_files = '../teachers/reach/SAC_ensemble_'
+                        args.pr_model_name = 'model.pt'
                         args.pr_size = 3
                         args.pr_alpha = 0.5
 

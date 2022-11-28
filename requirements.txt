@@ -16,7 +16,6 @@ click==8.0.3
 cloudpickle==1.6.0
 colorama==0.4.4
 configparser==5.2.0
--e git+https://f-krone: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@github.com/f-krone/SafeTransferLearningInChangingEnvironments.git@1cad17708f4f7e8ccc8f8c2e39f16e26c828e6fe#egg=custom_envs&subdirectory=src/custom_envs
 cycler==0.11.0
 Cython==0.29.26
 d3rlpy==1.0.0
@@ -144,9 +143,7 @@ terminado==0.12.1
 testpath==0.5.0
 threadpoolctl==3.0.0
 tifffile==2022.5.4
-torch==1.12.0+cu116
 torch-tb-profiler==0.4.0
-torchvision==0.13.0+cu116
 tornado==6.1
 tqdm==4.62.3
 traitlets==5.1.1
